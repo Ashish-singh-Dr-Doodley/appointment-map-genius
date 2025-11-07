@@ -56,16 +56,35 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
         let coords = null;
         
         // First, check if Lat/Long columns exist
-        if (row['Lat'] && row['Long']) {
-          coords = {
-            lat: parseFloat(row['Lat']),
-            lng: parseFloat(row['Long'])
-          };
+        const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+        const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+        
+        if (latValue && lngValue) {
+          const lat = parseFloat(latValue);
+          const lng = parseFloat(lngValue);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            coords = { lat, lng };
+          }
         }
         
         // If no coordinates yet, try to extract from Location URL
         if (!coords && row['Location']) {
           coords = extractCoordinatesFromUrl(row['Location']);
+          
+          // If URL extraction failed, try fetching the full URL for shortened links
+          if (!coords && (row['Location'].includes('goo.gl') || row['Location'].includes('maps.app.goo.gl'))) {
+            try {
+              // Extract from shortened URL by making a request
+              const shortUrl = row['Location'];
+              const response = await fetch(`https://unshorten.me/json/${encodeURIComponent(shortUrl)}`);
+              const data = await response.json();
+              if (data.resolved_url) {
+                coords = extractCoordinatesFromUrl(data.resolved_url);
+              }
+            } catch (e) {
+              console.error('Failed to expand short URL:', row['Location']);
+            }
+          }
         }
         
         return {
@@ -92,7 +111,8 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
       })
     );
     
-    console.log('Fetched appointments from Google Sheets:', appointments.length);
+    const withCoords = appointments.filter(a => a.latitude && a.longitude).length;
+    console.log(`Fetched ${appointments.length} appointments, ${withCoords} with coordinates`);
     return appointments;
   } catch (error) {
     console.error('Error fetching Google Sheet data:', error);

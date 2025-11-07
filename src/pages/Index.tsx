@@ -237,6 +237,7 @@ const Index = () => {
                         unassignedCount={unassignedCount}
                         doctorsCount={doctors.length}
                         doctors={doctors}
+                        appointments={appointments}
                         statusFilter={statusFilter}
                         onStatusFilterChange={setStatusFilter}
                         doctorFilter={doctorFilter}

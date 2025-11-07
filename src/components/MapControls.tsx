@@ -1,6 +1,8 @@
-import { Clock, Filter, Map as MapIcon } from 'lucide-react';
+import { Clock, Filter } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
+import { Appointment } from '@/types/appointment';
 import {
   Select,
   SelectContent,
@@ -9,7 +11,6 @@ import {
   SelectValue,
 } from './ui/select';
 import { Doctor } from '@/types/doctor';
-import { Appointment } from '@/types/appointment';
 
 interface MapControlsProps {
   totalAppointments: number;
@@ -22,6 +23,7 @@ interface MapControlsProps {
   doctorFilter: string;
   onDoctorFilterChange: (value: string) => void;
   onCalculateETAs: () => void;
+  appointments: Appointment[];
 }
 
 export const MapControls = ({
@@ -35,23 +37,9 @@ export const MapControls = ({
   doctorFilter,
   onDoctorFilterChange,
   onCalculateETAs,
+  appointments,
 }: MapControlsProps) => {
-  const doctorColors = [
-    'bg-red-500',
-    'bg-orange-500',
-    'bg-amber-500',
-    'bg-yellow-500',
-    'bg-lime-500',
-    'bg-green-500',
-    'bg-emerald-500',
-    'bg-teal-500',
-    'bg-cyan-500',
-    'bg-sky-500',
-    'bg-blue-500',
-    'bg-indigo-500',
-    'bg-violet-500',
-    'bg-purple-500',
-  ];
+  const uniqueDoctorNames = getUniqueDoctorNames(appointments);
 
   return (
     <Card className="h-full p-4 space-y-4 overflow-y-auto">
@@ -136,26 +124,34 @@ export const MapControls = ({
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Active Doctors</h4>
         <div className="space-y-2">
-          {doctors.map((doctor, index) => (
-            <div 
-              key={doctor.id}
-              className="flex items-center justify-between p-2 bg-muted/20 rounded-lg hover:bg-muted/40 transition-colors"
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <div className={`w-3 h-3 rounded-full ${doctorColors[index % doctorColors.length]}`} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{doctor.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {doctor.specialty}
-                  </p>
+          {uniqueDoctorNames.map((doctorName, index) => {
+            const doctorColor = getDoctorColor(doctorName, uniqueDoctorNames);
+            const appointmentCount = appointments.filter(a => a.doctorName === doctorName).length;
+            
+            return (
+              <div 
+                key={doctorName}
+                className="flex items-center justify-between p-2 bg-muted/20 rounded-lg hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: doctorColor }}
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{doctorName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {appointmentCount} appointment{appointmentCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-primary font-medium">ETA: --</p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-primary font-medium">ETA: --</p>
-              </div>
-            </div>
-          ))}
-          {doctors.length === 0 && (
+            );
+          })}
+          {uniqueDoctorNames.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
               No active doctors
             </p>
