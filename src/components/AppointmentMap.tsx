@@ -3,12 +3,15 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-map
 import { Appointment } from '@/types/appointment';
 import { Doctor } from '@/types/doctor';
 import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 
 interface AppointmentMapProps {
   appointments: Appointment[];
   doctors: Doctor[];
   onAppointmentSelect: (appointment: Appointment) => void;
   onDoctorSelect?: (doctor: Doctor) => void;
+  onAssignDoctor?: (appointmentId: string, doctorName: string) => void;
 }
 
 const mapContainerStyle = {
@@ -23,7 +26,7 @@ const defaultCenter = {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
 
-export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect }: AppointmentMapProps) => {
+export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor }: AppointmentMapProps) => {
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -172,15 +175,15 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           position={{ lat: selectedMarker.latitude!, lng: selectedMarker.longitude! }}
           onCloseClick={() => setSelectedMarker(null)}
         >
-          <div className="p-2 max-w-xs">
-            <h3 className="font-semibold text-base mb-1">{selectedMarker.customerName}</h3>
+          <div className="p-3 max-w-sm">
+            <h3 className="font-semibold text-base mb-2">{selectedMarker.customerName}</h3>
             <p className="text-sm text-gray-600 mb-1">
               {selectedMarker.petType} - {selectedMarker.subCategory}
             </p>
             <p className="text-sm mb-1">
               {selectedMarker.visitDate} at {selectedMarker.visitTime}
             </p>
-            <p className="text-sm">
+            <p className="text-sm mb-2">
               <span className="font-medium">Status:</span>{' '}
               <span 
                 className="font-semibold"
@@ -192,11 +195,32 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
                 {selectedMarker.status}
               </span>
             </p>
-            {selectedMarker.doctorName && (
-              <p className="text-sm mt-1">
-                <span className="font-medium">Doctor:</span> {selectedMarker.doctorName}
-              </p>
-            )}
+            
+            <div className="mt-3 space-y-2">
+              <label className="text-sm font-medium">Assign Doctor:</label>
+              <Select
+                value={selectedMarker.doctorName || ''}
+                onValueChange={(doctorName) => {
+                  if (onAssignDoctor) {
+                    onAssignDoctor(selectedMarker.id, doctorName);
+                    setSelectedMarker(null);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a doctor" />
+                </SelectTrigger>
+                <SelectContent>
+                  {doctors.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.name}>
+                      <span style={{ color: getDoctorColor(doctor.name, uniqueDoctorNames) }}>
+                        ● {doctor.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </InfoWindow>
       )}
