@@ -1,4 +1,54 @@
-// Expand shortened Google Maps URL and extract coordinates
+const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
+
+// Retry logic wrapper
+const retryFetch = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 2000
+): Promise<T | null> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      console.log(`⚠️ Attempt ${i + 1}/${retries} failed, retrying...`);
+      if (i < retries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error(`❌ All ${retries} attempts failed:`, error);
+        return null;
+      }
+    }
+  }
+  return null;
+};
+
+// Fallback geocoding using Google Geocoding API with address
+export const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+  if (!address || address.trim() === '') return null;
+  
+  try {
+    console.log('🌍 Attempting geocoding for address:', address);
+    const encodedAddress = encodeURIComponent(address);
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${GOOGLE_MAPS_API_KEY}`;
+    
+    const response = await fetch(geocodeUrl);
+    const data = await response.json();
+    
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const location = data.results[0].geometry.location;
+      console.log('✅ Geocoding successful:', location);
+      return { lat: location.lat, lng: location.lng };
+    } else {
+      console.warn('⚠️ Geocoding failed:', data.status);
+      return null;
+    }
+  } catch (error) {
+    console.error('❌ Geocoding error:', error);
+    return null;
+  }
+};
+
+// Expand shortened Google Maps URL and extract coordinates with retry logic
 export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ lat: number; lng: number } | null> => {
   if (!url || !url.includes('maps')) return null;
 
@@ -7,23 +57,25 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
     
     // For shortened URLs (goo.gl or maps.app.goo.gl), we need to follow redirects
     if (url.includes('goo.gl')) {
-      console.log('📍 Detected shortened URL, expanding...');
+      console.log('📍 Detected shortened URL, expanding with retry...');
       
-      // Use a CORS proxy to get the HTML content
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      
-      try {
-        const response = await fetch(proxyUrl);
+      // Use retry logic for the CORS proxy fetch
+      const coords = await retryFetch(async () => {
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        
+        const response = await fetch(proxyUrl, {
+          signal: AbortSignal.timeout(15000) // 15 second timeout
+        });
         const data = await response.json();
         const htmlContent = data.contents;
         
         console.log('✅ Fetched HTML content, extracting coordinates...');
         
         // Try to extract coordinates from the HTML content
-        const coords = extractCoordinatesFromHtml(htmlContent);
-        if (coords) {
-          console.log('✅ Coordinates extracted:', coords);
-          return coords;
+        const extractedCoords = extractCoordinatesFromHtml(htmlContent);
+        if (extractedCoords) {
+          console.log('✅ Coordinates extracted:', extractedCoords);
+          return extractedCoords;
         }
         
         // Also try to extract from any meta tags or links in the HTML
@@ -32,9 +84,11 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
           console.log('✅ Coordinates extracted from meta:', metaCoords);
           return metaCoords;
         }
-      } catch (error) {
-        console.error('❌ Failed to expand URL:', error);
-      }
+        
+        throw new Error('Could not extract coordinates from HTML');
+      }, 3, 2000);
+      
+      if (coords) return coords;
     }
     
     // Try direct extraction for non-shortened URLs

@@ -1,5 +1,5 @@
 import { Appointment } from '@/types/appointment';
-import { fetchCoordinatesFromGoogleMapsUrl } from './coordinateFetcher';
+import { fetchCoordinatesFromGoogleMapsUrl, geocodeAddress } from './coordinateFetcher';
 
 const SHEET_ID = '1qBQy51cOe7D06gWFskQxar3oB8ZtGzeyBnkQUIcZ8iw';
 const GID = '0';
@@ -109,7 +109,18 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
           if (coords) {
             console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Coordinates found - ${coords.lat}, ${coords.lng}`);
           } else {
-            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Could not fetch coordinates from URL: ${locationUrl}`);
+            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): URL failed, trying geocoding...`);
+            
+            // Method 3: Fallback to geocoding with detailed address or location
+            const addressToGeocode = row['Detailed address'] || row['Location'];
+            if (addressToGeocode && !addressToGeocode.includes('goo.gl')) {
+              coords = await geocodeAddress(addressToGeocode);
+              if (coords) {
+                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded address - ${coords.lat}, ${coords.lng}`);
+              } else {
+                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed for: ${locationUrl}`);
+              }
+            }
           }
           
           // Add delay to avoid rate limiting
