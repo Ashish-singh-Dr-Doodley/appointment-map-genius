@@ -84,22 +84,35 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
       }
       
       // Method 1: Check for Lat/Long columns (fastest)
-      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+      // Handle various column name variations including typos
+      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'] || row['Latitutde'] || row['latitutde'];
       let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
       
       console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
       
-      // Check if columns might be swapped (Lat has no value but Long does)
-      if (!latValue && lngValue) {
-        // Try to detect if values are swapped by checking if "Long" value is in lat range
+      // Check if columns might be swapped
+      // Case 1: Lat is empty but Long has a value that looks like latitude
+      if ((!latValue || latValue === '') && lngValue && lngValue !== '') {
         const possibleLat = parseFloat(lngValue);
         if (!isNaN(possibleLat) && possibleLat >= -90 && possibleLat <= 90) {
-          // Likely swapped - treat Long column as Lat and check if Lat column has lng value
-          const possibleLng = row['Lat'] || row['lat'];
-          if (possibleLng) {
-            console.warn(`⚠️ Row ${index + 1}: Detected swapped Lat/Long columns, correcting...`);
+          console.warn(`⚠️ Row ${index + 1}: Long column has lat-range value (${lngValue}), likely swapped - using it as latitude`);
+          latValue = lngValue;
+          lngValue = ''; // Clear since we don't have the real longitude
+        }
+      }
+      
+      // Case 2: Both values exist but might be in wrong columns - check if swapped
+      if (latValue && lngValue) {
+        const lat = parseFloat(latValue);
+        const lng = parseFloat(lngValue);
+        
+        if (!isNaN(lat) && !isNaN(lng)) {
+          // If "Lat" is outside -90 to 90 but "Long" is inside, they're swapped
+          if ((lat < -90 || lat > 90) && (lng >= -90 && lng <= 90)) {
+            console.warn(`⚠️ Row ${index + 1}: Detected swapped columns (Lat=${lat}, Long=${lng}), correcting...`);
+            const temp = latValue;
             latValue = lngValue;
-            lngValue = possibleLng;
+            lngValue = temp;
           }
         }
       }
