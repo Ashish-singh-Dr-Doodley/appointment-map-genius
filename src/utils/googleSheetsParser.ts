@@ -84,18 +84,24 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
       }
       
       // Method 1: Check for Lat/Long columns (fastest)
+      // IMPORTANT: Google Sheets format is typically "Long" (longitude) then "Lat" (latitude)
       const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
       const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
       
-      console.log(`Row ${index + 1} - Lat value:`, latValue, 'Long value:', lngValue);
+      console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
       
       if (latValue && lngValue) {
         const lat = parseFloat(latValue);
         const lng = parseFloat(lngValue);
-        console.log(`Row ${index + 1} - Parsed Lat:`, lat, 'Parsed Long:', lng);
-        if (!isNaN(lat) && !isNaN(lng)) {
+        
+        // Validate coordinates are in correct range
+        if (!isNaN(lat) && !isNaN(lng) && 
+            lat >= -90 && lat <= 90 && 
+            lng >= -180 && lng <= 180) {
           coords = { lat, lng };
-          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - ${lat}, ${lng}`);
+          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - Lat: ${lat}, Lng: ${lng}`);
+        } else {
+          console.warn(`⚠️ Row ${index + 1}: Invalid coordinates - Lat: ${lat}, Lng: ${lng}`);
         }
       }
       
