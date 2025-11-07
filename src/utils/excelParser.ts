@@ -18,20 +18,49 @@ export const parseExcelFile = async (file: File): Promise<Appointment[]> => {
             let coords = null;
             
             // First, check if Lat/Long columns exist
-            if (row['Lat'] && row['Long']) {
-              coords = {
-                lat: parseFloat(row['Lat']),
-                lng: parseFloat(row['Long'])
-              };
+            // Try both normal and potentially swapped columns
+            let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+            let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+            
+            // If one is missing, try swapped column names (some sheets swap Lat/Long)
+            if (!latValue && lngValue) {
+              latValue = lngValue;
+              lngValue = row['Lat'] || row['lat'];
             }
             
-            // If no coordinates yet, try to fetch from Location URL using coordinateFetcher
-            if (!coords && row['Location']) {
-              coords = await fetchCoordinatesFromGoogleMapsUrl(row['Location']);
+            if (latValue && lngValue) {
+              const lat = parseFloat(latValue);
+              const lng = parseFloat(lngValue);
               
-              // Add delay to avoid rate limiting
-              if (coords) {
+              // Validate coordinates are in proper range
+              if (!isNaN(lat) && !isNaN(lng) && 
+                  lat >= -90 && lat <= 90 && 
+                  lng >= -180 && lng <= 180) {
+                coords = { lat, lng };
+                console.log(`✅ Row ${index + 1}: Using Lat/Long - ${lat}, ${lng}`);
+              } else {
+                console.warn(`⚠️ Row ${index + 1}: Invalid coordinates - Lat: ${lat}, Lng: ${lng}`);
+              }
+            }
+            
+            // If no coordinates yet, try to fetch from Location URL or geocode address
+            if (!coords) {
+              const locationUrl = row['Location'];
+              const detailedAddress = row['Detailed address'] || row['Detailed Address'];
+              
+              if (locationUrl) {
+                coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
                 await new Promise(resolve => setTimeout(resolve, 300));
+              }
+              
+              // If still no coords and we have a detailed address, try geocoding
+              if (!coords && detailedAddress) {
+                const { geocodeAddress } = await import('./coordinateFetcher');
+                coords = await geocodeAddress(detailedAddress);
+                if (coords) {
+                  console.log(`✅ Row ${index + 1}: Geocoded from address - ${coords.lat}, ${coords.lng}`);
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                }
               }
             }
             

@@ -84,11 +84,25 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
       }
       
       // Method 1: Check for Lat/Long columns (fastest)
-      // IMPORTANT: Google Sheets format is typically "Long" (longitude) then "Lat" (latitude)
-      const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
-      const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+      let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
       
       console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
+      
+      // Check if columns might be swapped (Lat has no value but Long does)
+      if (!latValue && lngValue) {
+        // Try to detect if values are swapped by checking if "Long" value is in lat range
+        const possibleLat = parseFloat(lngValue);
+        if (!isNaN(possibleLat) && possibleLat >= -90 && possibleLat <= 90) {
+          // Likely swapped - treat Long column as Lat and check if Lat column has lng value
+          const possibleLng = row['Lat'] || row['lat'];
+          if (possibleLng) {
+            console.warn(`⚠️ Row ${index + 1}: Detected swapped Lat/Long columns, correcting...`);
+            latValue = lngValue;
+            lngValue = possibleLng;
+          }
+        }
+      }
       
       if (latValue && lngValue) {
         const lat = parseFloat(latValue);
@@ -113,8 +127,8 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
           // For shortened URLs, skip CORS proxy and go straight to geocoding
           if (locationUrl.includes('goo.gl')) {
             console.log(`🔄 Row ${index + 1} (${row['Customer Name']}): Shortened URL detected, using geocoding...`);
-            const addressToGeocode = row['Detailed address'] || row['Customer Name'];
-            if (addressToGeocode) {
+            const addressToGeocode = row['Detailed address'] || row['Detailed Address'];
+            if (addressToGeocode && addressToGeocode.trim()) {
               coords = await geocodeAddress(addressToGeocode);
               if (coords) {
                 console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded - ${coords.lat}, ${coords.lng}`);
@@ -131,14 +145,16 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
           // If still no coords, try geocoding as final fallback
           if (!coords) {
             console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Trying geocoding fallback...`);
-            const addressToGeocode = row['Detailed address'] || row['Customer Name'];
-            if (addressToGeocode) {
+            const addressToGeocode = row['Detailed address'] || row['Detailed Address'];
+            if (addressToGeocode && addressToGeocode.trim()) {
               coords = await geocodeAddress(addressToGeocode);
               if (coords) {
                 console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded fallback - ${coords.lat}, ${coords.lng}`);
               } else {
-                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed`);
+                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed - no detailed address`);
               }
+            } else {
+              console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed - no detailed address available`);
             }
           }
           
