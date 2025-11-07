@@ -11,6 +11,7 @@ const parseCSV = (csvText: string): any[] => {
   const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
   
   console.log('📋 CSV Headers:', headers);
+  console.log('📋 Header count:', headers.length);
   
   const data = [];
   for (let i = 1; i < lines.length; i++) {
@@ -32,10 +33,16 @@ const parseCSV = (csvText: string): any[] => {
     }
     values.push(currentValue.trim().replace(/^"|"$/g, ''));
     
+    console.log(`Row ${i} - Values count: ${values.length}`, values.slice(-2)); // Log last 2 values (should be Long, Lat)
+    
     const row: any = {};
     headers.forEach((header, index) => {
-      row[header] = values[index] || '';
+      if (header) { // Only map non-empty headers
+        row[header] = values[index] || '';
+      }
     });
+    
+    console.log(`Row ${i} - Long: "${row['Long']}", Lat: "${row['Lat']}"`);
     data.push(row);
   }
   
