@@ -99,32 +99,45 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
         }
       }
       
-      // Method 2: Fetch from Google Maps URL (if no lat/long columns)
+      // Method 2: Fetch from Google Maps URL or geocode address
       if (!coords && row['Location']) {
         const locationUrl = row['Location'].trim();
         
         if (locationUrl) {
-          coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
-          
-          if (coords) {
-            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Coordinates found - ${coords.lat}, ${coords.lng}`);
-          } else {
-            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): URL failed, trying geocoding...`);
-            
-            // Method 3: Fallback to geocoding with detailed address or location
-            const addressToGeocode = row['Detailed address'] || row['Location'];
-            if (addressToGeocode && !addressToGeocode.includes('goo.gl')) {
+          // For shortened URLs, skip CORS proxy and go straight to geocoding
+          if (locationUrl.includes('goo.gl')) {
+            console.log(`🔄 Row ${index + 1} (${row['Customer Name']}): Shortened URL detected, using geocoding...`);
+            const addressToGeocode = row['Detailed address'] || row['Customer Name'];
+            if (addressToGeocode) {
               coords = await geocodeAddress(addressToGeocode);
               if (coords) {
-                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded address - ${coords.lat}, ${coords.lng}`);
+                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded - ${coords.lat}, ${coords.lng}`);
+              }
+            }
+          } else {
+            // Try to extract from full URL
+            coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
+            if (coords) {
+              console.log(`✅ Row ${index + 1} (${row['Customer Name']}): URL extraction - ${coords.lat}, ${coords.lng}`);
+            }
+          }
+          
+          // If still no coords, try geocoding as final fallback
+          if (!coords) {
+            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Trying geocoding fallback...`);
+            const addressToGeocode = row['Detailed address'] || row['Customer Name'];
+            if (addressToGeocode) {
+              coords = await geocodeAddress(addressToGeocode);
+              if (coords) {
+                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded fallback - ${coords.lat}, ${coords.lng}`);
               } else {
-                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed for: ${locationUrl}`);
+                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed`);
               }
             }
           }
           
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 300));
+          // Add delay to avoid rate limiting on Google Geocoding API
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       

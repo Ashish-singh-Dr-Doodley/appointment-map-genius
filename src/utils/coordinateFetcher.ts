@@ -55,47 +55,50 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
   try {
     console.log('🔍 Fetching coordinates from URL:', url);
     
-    // For shortened URLs (goo.gl or maps.app.goo.gl), we need to follow redirects
-    if (url.includes('goo.gl')) {
-      console.log('📍 Detected shortened URL, expanding with retry...');
-      
-      // Use retry logic for the CORS proxy fetch
-      const coords = await retryFetch(async () => {
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        
-        const response = await fetch(proxyUrl, {
-          signal: AbortSignal.timeout(15000) // 15 second timeout
-        });
-        const data = await response.json();
-        const htmlContent = data.contents;
-        
-        console.log('✅ Fetched HTML content, extracting coordinates...');
-        
-        // Try to extract coordinates from the HTML content
-        const extractedCoords = extractCoordinatesFromHtml(htmlContent);
-        if (extractedCoords) {
-          console.log('✅ Coordinates extracted:', extractedCoords);
-          return extractedCoords;
-        }
-        
-        // Also try to extract from any meta tags or links in the HTML
-        const metaCoords = extractCoordinatesFromExpandedUrl(htmlContent);
-        if (metaCoords) {
-          console.log('✅ Coordinates extracted from meta:', metaCoords);
-          return metaCoords;
-        }
-        
-        throw new Error('Could not extract coordinates from HTML');
-      }, 3, 2000);
-      
-      if (coords) return coords;
+    // Try direct extraction first for all URLs
+    const directCoords = extractCoordinatesFromExpandedUrl(url);
+    if (directCoords) {
+      console.log('✅ Coordinates extracted directly from URL:', directCoords);
+      return directCoords;
     }
     
-    // Try direct extraction for non-shortened URLs
-    const coords = extractCoordinatesFromExpandedUrl(url);
-    if (coords) {
-      console.log('✅ Coordinates extracted from original URL:', coords);
-      return coords;
+    // For shortened URLs, try alternative CORS proxies with shorter timeout
+    if (url.includes('goo.gl')) {
+      console.log('📍 Detected shortened URL, attempting expansion...');
+      
+      // Try multiple CORS proxies in sequence (with shorter timeout)
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+      ];
+      
+      for (const proxyUrl of proxies) {
+        try {
+          const response = await fetch(proxyUrl, {
+            signal: AbortSignal.timeout(5000) // Reduced to 5 seconds
+          });
+          
+          const htmlContent = await response.text();
+          console.log('✅ Fetched HTML content from proxy, extracting coordinates...');
+          
+          // Try to extract coordinates from the HTML content
+          const extractedCoords = extractCoordinatesFromHtml(htmlContent);
+          if (extractedCoords) {
+            console.log('✅ Coordinates extracted from HTML:', extractedCoords);
+            return extractedCoords;
+          }
+          
+          // Also try to extract from any meta tags or links in the HTML
+          const metaCoords = extractCoordinatesFromExpandedUrl(htmlContent);
+          if (metaCoords) {
+            console.log('✅ Coordinates extracted from meta:', metaCoords);
+            return metaCoords;
+          }
+        } catch (proxyError) {
+          console.log(`⚠️ Proxy ${proxyUrl} failed, trying next...`);
+          continue;
+        }
+      }
     }
     
     console.log('❌ Could not extract coordinates from URL');
