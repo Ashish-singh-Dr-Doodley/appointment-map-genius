@@ -9,17 +9,29 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
     if (url.includes('goo.gl')) {
       console.log('📍 Detected shortened URL, expanding...');
       
-      // Use a CORS proxy to fetch the URL and follow redirects
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      
       try {
-        const response = await fetch(proxyUrl, {
-          method: 'GET',
-          redirect: 'follow'
-        });
+        // Use a CORS proxy to get the actual HTML content
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        const data = await response.json();
+        const htmlContent = data.contents;
         
-        // The response URL will be the expanded URL
-        const expandedUrl = response.url || url;
+        // Extract the actual Google Maps URL from meta tags or redirects
+        const urlMatch = htmlContent.match(/url=([^"]+)/);
+        const metaMatch = htmlContent.match(/<meta[^>]*content=["']0;url=([^"']+)["']/i);
+        const hrefMatch = htmlContent.match(/href=["']([^"']*maps\.google\.com[^"']+)["']/i);
+        
+        let expandedUrl = url;
+        if (metaMatch && metaMatch[1]) {
+          expandedUrl = metaMatch[1];
+        } else if (urlMatch && urlMatch[1] && urlMatch[1].includes('maps')) {
+          expandedUrl = urlMatch[1];
+        } else if (hrefMatch && hrefMatch[1]) {
+          expandedUrl = hrefMatch[1];
+        }
+        
+        // Decode HTML entities
+        expandedUrl = expandedUrl.replace(/&amp;/g, '&');
         console.log('✅ Expanded URL:', expandedUrl);
         
         // Now try to extract coordinates from the expanded URL
