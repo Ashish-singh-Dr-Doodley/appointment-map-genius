@@ -57,8 +57,33 @@ const Index = () => {
     }
   };
 
-  const handleDataParsed = (parsedAppointments: Appointment[]) => {
-    setAppointments(parsedAppointments);
+  const handleDataParsed = async (file: File) => {
+    setIsLoading(true);
+    try {
+      toast({
+        title: "Parsing Excel",
+        description: "Reading file and extracting coordinates from Location URLs...",
+      });
+      
+      const parsedAppointments = await parseExcelFile(file);
+      setAppointments(parsedAppointments);
+      
+      const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
+      
+      toast({
+        title: "Upload Complete",
+        description: `${parsedAppointments.length} appointments loaded. ${withCoords} with map locations.`,
+      });
+    } catch (error) {
+      console.error('Error parsing Excel file:', error);
+      toast({
+        title: "Error",
+        description: "Failed to parse Excel file. Please check the format.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAssignDoctor = (appointmentId: string, doctorName: string) => {
@@ -319,7 +344,8 @@ const Index = () => {
 
               {/* Doctors Tab */}
               <TabsContent value="doctors">
-                <div className="max-w-2xl mx-auto">
+                <div className="max-w-2xl mx-auto space-y-6">
+                  <FileUpload onDataParsed={handleDataParsed} />
                   <DoctorOnboarding
                     doctors={doctors}
                     onAddDoctor={handleAddDoctor}

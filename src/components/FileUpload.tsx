@@ -1,33 +1,16 @@
 import { useCallback } from 'react';
 import { Upload } from 'lucide-react';
-import { parseExcelFile } from '@/utils/excelParser';
-import { Appointment } from '@/types/appointment';
-import { toast } from 'sonner';
 
 interface FileUploadProps {
-  onDataParsed: (appointments: Appointment[]) => void;
+  onDataParsed: (file: File) => void;
 }
 
 export const FileUpload = ({ onDataParsed }: FileUploadProps) => {
-  const handleFileUpload = useCallback(async (file: File) => {
+  const handleFileUpload = useCallback((file: File) => {
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      toast.error('Please upload an Excel file (.xlsx or .xls)');
       return;
     }
-
-    try {
-      toast.loading('Parsing Excel file...');
-      const appointments = await parseExcelFile(file);
-      const validAppointments = appointments.filter(a => a.latitude && a.longitude);
-      
-      toast.dismiss();
-      toast.success(`Successfully parsed ${validAppointments.length} appointments with coordinates`);
-      onDataParsed(appointments);
-    } catch (error) {
-      toast.dismiss();
-      toast.error('Error parsing Excel file. Please check the file format.');
-      console.error(error);
-    }
+    onDataParsed(file);
   }, [onDataParsed]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
