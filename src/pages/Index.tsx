@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Appointment } from '@/types/appointment';
-import { Progress } from '@/components/ui/progress';
 import { Doctor } from '@/types/doctor';
 import { FileUpload } from '@/components/FileUpload';
 import { AppointmentMap } from '@/components/AppointmentMap';
@@ -20,7 +19,6 @@ const Index = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [mapKey, setMapKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [statusFilter, setStatusFilter] = useState('all');
   const [doctorFilter, setDoctorFilter] = useState('all');
   const { toast } = useToast();
@@ -32,16 +30,13 @@ const Index = () => {
 
   const loadSampleData = async () => {
     setIsLoading(true);
-    setLoadingProgress({ current: 0, total: 0 });
     try {
       toast({
         title: "Loading Data",
         description: "Fetching appointments and coordinates from Google Sheets...",
       });
       
-      const parsedAppointments = await fetchGoogleSheetData((current, total) => {
-        setLoadingProgress({ current, total });
-      });
+      const parsedAppointments = await fetchGoogleSheetData();
       setAppointments(parsedAppointments);
       
       const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
@@ -59,7 +54,6 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
-      setLoadingProgress({ current: 0, total: 0 });
     }
   };
 
@@ -114,7 +108,6 @@ const Index = () => {
 
   const handleRefreshData = async () => {
     setIsLoading(true);
-    setLoadingProgress({ current: 0, total: 0 });
     try {
       const updatedAppointments = await refreshGoogleSheetData(appointments);
       const newCount = updatedAppointments.length - appointments.length;
@@ -135,17 +128,13 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
-      setLoadingProgress({ current: 0, total: 0 });
     }
   };
 
   const handleResetAll = async () => {
     setIsLoading(true);
-    setLoadingProgress({ current: 0, total: 0 });
     try {
-      const freshData = await fetchGoogleSheetData((current, total) => {
-        setLoadingProgress({ current, total });
-      });
+      const freshData = await fetchGoogleSheetData();
       setAppointments(freshData);
       setDoctors([]);
       setSelectedAppointment(null);
@@ -163,7 +152,6 @@ const Index = () => {
       });
     } finally {
       setIsLoading(false);
-      setLoadingProgress({ current: 0, total: 0 });
     }
   };
 
@@ -239,19 +227,7 @@ const Index = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-96 space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">
-              {loadingProgress.total > 0 
-                ? `Extracting coordinates... ${loadingProgress.current}/${loadingProgress.total}`
-                : 'Loading appointments...'}
-            </p>
-            {loadingProgress.total > 0 && (
-              <div className="max-w-md w-full px-4 space-y-2">
-                <Progress value={(loadingProgress.current / loadingProgress.total) * 100} />
-                <p className="text-sm text-muted-foreground text-center">
-                  {Math.round((loadingProgress.current / loadingProgress.total) * 100)}% complete
-                </p>
-              </div>
-            )}
+            <p className="text-muted-foreground">Loading and geocoding appointments...</p>
             <p className="text-sm text-muted-foreground">This may take a moment as we fetch coordinates from Google Maps</p>
           </div>
         ) : (

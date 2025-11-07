@@ -50,9 +50,7 @@ const parseCSV = (csvText: string): any[] => {
 };
 
 // Fetch data from Google Sheets
-export const fetchGoogleSheetData = async (
-  onProgress?: (current: number, total: number) => void
-): Promise<Appointment[]> => {
+export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
   try {
     console.log('🔄 Fetching data from Google Sheets...');
     const response = await fetch(SHEET_CSV_URL);
@@ -80,11 +78,6 @@ export const fetchGoogleSheetData = async (
       processedCount++;
       if (processedCount % 5 === 0 || processedCount === totalRows) {
         console.log(`⏳ Progress: ${processedCount}/${totalRows} appointments processed`);
-      }
-      
-      // Report progress to callback
-      if (onProgress) {
-        onProgress(processedCount, totalRows);
       }
       
       // Method 1: Try to fetch from Google Maps URL in Location column (column L)
