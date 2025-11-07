@@ -51,68 +51,118 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
     const csvText = await response.text();
     const jsonData = parseCSV(csvText);
     
-    const appointments: Appointment[] = await Promise.all(
-      jsonData.map(async (row: any, index) => {
-        let coords = null;
+    const appointments: Appointment[] = [];
+    
+    for (let index = 0; index < jsonData.length; index++) {
+      const row = jsonData[index];
+      let coords = null;
+      
+      // First, check if Lat/Long columns exist
+      const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+      const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      
+      if (latValue && lngValue) {
+        const lat = parseFloat(latValue);
+        const lng = parseFloat(lngValue);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          coords = { lat, lng };
+          console.log(`Row ${index}: Found lat/lng in columns:`, coords);
+        }
+      }
+      
+      // If no coordinates yet, try to extract from Location URL
+      if (!coords && row['Location']) {
+        const locationUrl = row['Location'].trim();
+        console.log(`Row ${index}: Trying to extract from URL:`, locationUrl);
         
-        // First, check if Lat/Long columns exist
-        const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
-        const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+        // Try direct extraction first
+        coords = extractCoordinatesFromUrl(locationUrl);
         
-        if (latValue && lngValue) {
-          const lat = parseFloat(latValue);
-          const lng = parseFloat(lngValue);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            coords = { lat, lng };
+        if (coords) {
+          console.log(`Row ${index}: Extracted coordinates:`, coords);
+        } else if (locationUrl.includes('maps.app.goo.gl') || locationUrl.includes('goo.gl')) {
+          // For shortened URLs, try to fetch and expand
+          try {
+            console.log(`Row ${index}: Attempting to expand short URL...`);
+            // Use a CORS proxy to fetch the redirected URL
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(locationUrl)}`;
+            const response = await fetch(proxyUrl, { 
+              method: 'HEAD',
+              redirect: 'follow' 
+            });
+            
+            const finalUrl = response.url;
+            console.log(`Row ${index}: Expanded to:`, finalUrl);
+            coords = extractCoordinatesFromUrl(finalUrl);
+            
+            if (coords) {
+              console.log(`Row ${index}: Extracted from expanded URL:`, coords);
+            }
+          } catch (e) {
+            console.error(`Row ${index}: Failed to expand URL:`, e);
           }
         }
         
-        // If no coordinates yet, try to extract from Location URL
-        if (!coords && row['Location']) {
-          coords = extractCoordinatesFromUrl(row['Location']);
+        // If still no coords, try manual parsing of common Google Maps formats
+        if (!coords && locationUrl.includes('google') && locationUrl.includes('maps')) {
+          // Try to find coordinates in various parts of the URL
+          const patterns = [
+            /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+            /!3d(-?\d+\.\d+).*!4d(-?\d+\.\d+)/,
+            /q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+            /ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+            /center=(-?\d+\.\d+),(-?\d+\.\d+)/,
+          ];
           
-          // If URL extraction failed, try fetching the full URL for shortened links
-          if (!coords && (row['Location'].includes('goo.gl') || row['Location'].includes('maps.app.goo.gl'))) {
-            try {
-              // Extract from shortened URL by making a request
-              const shortUrl = row['Location'];
-              const response = await fetch(`https://unshorten.me/json/${encodeURIComponent(shortUrl)}`);
-              const data = await response.json();
-              if (data.resolved_url) {
-                coords = extractCoordinatesFromUrl(data.resolved_url);
-              }
-            } catch (e) {
-              console.error('Failed to expand short URL:', row['Location']);
+          for (const pattern of patterns) {
+            const match = locationUrl.match(pattern);
+            if (match) {
+              coords = {
+                lat: parseFloat(match[1]),
+                lng: parseFloat(match[2])
+              };
+              console.log(`Row ${index}: Matched pattern, coords:`, coords);
+              break;
             }
           }
         }
-        
-        return {
-          id: `${row['Sr No'] || index}`,
-          srNo: row['Sr No'] || index,
-          petType: row['Pet Type'] || '',
-          subCategory: row['Sub- category'] || '',
-          queryDate: row['Query Date'] || '',
-          mobileNumber: row['Mobile Number'] || '',
-          customerName: row['Customer Name'] || '',
-          doctorName: row['Doctor Name'] || undefined,
-          sourceOfOrder: row['Source of order'] || '',
-          agentName: row['Agent Name'] || '',
-          location: row['Location'] || '',
-          detailedAddress: row['Detailed address'] || undefined,
-          issue: row['Issue'] || '',
-          visitDate: row['Visit Date'] || '',
-          visitTime: row['Visit Time'] || '',
-          status: (row['Status'] || 'Pending') as Appointment['status'],
-          baseCharges: parseFloat(row['Base Charges']) || 0,
-          latitude: coords?.lat,
-          longitude: coords?.lng,
-        };
-      })
-    );
+      }
+      
+      const appointment = {
+        id: `${row['Sr No'] || index}`,
+        srNo: row['Sr No'] || index,
+        petType: row['Pet Type'] || '',
+        subCategory: row['Sub- category'] || '',
+        queryDate: row['Query Date'] || '',
+        mobileNumber: row['Mobile Number'] || '',
+        customerName: row['Customer Name'] || '',
+        doctorName: row['Doctor Name'] || undefined,
+        sourceOfOrder: row['Source of order'] || '',
+        agentName: row['Agent Name'] || '',
+        location: row['Location'] || '',
+        detailedAddress: row['Detailed address'] || undefined,
+        issue: row['Issue'] || '',
+        visitDate: row['Visit Date'] || '',
+        visitTime: row['Visit Time'] || '',
+        status: (row['Status'] || 'Pending') as Appointment['status'],
+        baseCharges: parseFloat(row['Base Charges']) || 0,
+        latitude: coords?.lat,
+        longitude: coords?.lng,
+      };
+      
+      appointments.push(appointment);
+    }
     
     const withCoords = appointments.filter(a => a.latitude && a.longitude).length;
-    console.log(`Fetched ${appointments.length} appointments, ${withCoords} with coordinates`);
+    console.log(`✅ Fetched ${appointments.length} appointments, ${withCoords} with valid coordinates`);
+    
+    if (withCoords === 0) {
+      console.warn('⚠️ No coordinates found! Check if:');
+      console.warn('1. Google Sheet has Lat/Long columns');
+      console.warn('2. Location URLs are valid Google Maps links');
+      console.warn('3. Sample location URL:', appointments[0]?.location);
+    }
+    
     return appointments;
   } catch (error) {
     console.error('Error fetching Google Sheet data:', error);
