@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { Appointment } from '@/types/appointment';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
 
 interface AppointmentMapProps {
   appointments: Appointment[];
@@ -19,14 +17,14 @@ const defaultCenter = {
   lng: 77.5946,
 };
 
+const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
+
 export const AppointmentMap = ({ appointments, onAppointmentSelect }: AppointmentMapProps) => {
-  const [apiKey, setApiKey] = useState('AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto');
-  const [apiKeyEntered, setApiKeyEntered] = useState(true);
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: apiKey,
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
     id: 'google-map-script',
   });
 
@@ -61,52 +59,12 @@ export const AppointmentMap = ({ appointments, onAppointmentSelect }: Appointmen
     return colors[status] || '#3b82f6';
   };
 
-  if (!apiKeyEntered) {
-    return (
-      <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
-        <div className="max-w-md w-full p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-center">Enter Google Maps API Key</h3>
-          <p className="text-sm text-muted-foreground text-center">
-            Get your API key from{' '}
-            <a 
-              href="https://console.cloud.google.com/google/maps-apis" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="text-primary hover:underline"
-            >
-              Google Cloud Console
-            </a>
-          </p>
-          <p className="text-xs text-muted-foreground text-center">
-            Enable "Maps JavaScript API" and restrict your key by HTTP referrer for security
-          </p>
-          <Input
-            type="text"
-            placeholder="AIzaSy..."
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-          <Button
-            onClick={() => setApiKeyEntered(true)}
-            disabled={!apiKey}
-            className="w-full"
-          >
-            Load Map
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   if (loadError) {
     return (
       <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
         <div className="text-center text-destructive">
           <p className="font-semibold">Error loading Google Maps</p>
-          <p className="text-sm">Please check your API key and try again</p>
-          <Button onClick={() => setApiKeyEntered(false)} className="mt-4">
-            Re-enter API Key
-          </Button>
+          <p className="text-sm">Please check your API key and refresh the page</p>
         </div>
       </div>
     );
