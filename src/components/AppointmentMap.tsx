@@ -5,7 +5,6 @@ import { Doctor } from '@/types/doctor';
 import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface AppointmentMapProps {
   appointments: Appointment[];
@@ -13,7 +12,6 @@ interface AppointmentMapProps {
   onAppointmentSelect: (appointment: Appointment) => void;
   onDoctorSelect?: (doctor: Doctor) => void;
   onAssignDoctor?: (appointmentId: string, doctorName: string) => void;
-  onReorder?: (doctorName: string, appointmentId: string, newOrder: number) => void;
 }
 
 const mapContainerStyle = {
@@ -28,7 +26,7 @@ const defaultCenter = {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
 
-export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor, onReorder }: AppointmentMapProps) => {
+export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor }: AppointmentMapProps) => {
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -242,103 +240,37 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
               </span>
             </p>
             
-            <div className="mt-3 space-y-3">
-              <div>
-                <label className="text-sm font-medium">Assign Doctor:</label>
-                <Select
-                  value={selectedMarker.doctorName || 'unassigned'}
-                  onValueChange={(value) => {
-                    if (onAssignDoctor) {
-                      // If "unassigned" is selected, pass empty string to unassign
-                      const doctorName = value === 'unassigned' ? '' : value;
-                      onAssignDoctor(selectedMarker.id, doctorName);
-                      setSelectedMarker(null);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select a doctor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white z-50">
-                    <SelectItem value="unassigned">
-                      <span className="text-muted-foreground">
-                        ✕ Unassign
+            <div className="mt-3">
+              <label className="text-sm font-medium">Assign Doctor:</label>
+              <Select
+                value={selectedMarker.doctorName || 'unassigned'}
+                onValueChange={(value) => {
+                  if (onAssignDoctor) {
+                    // If "unassigned" is selected, pass empty string to unassign
+                    const doctorName = value === 'unassigned' ? '' : value;
+                    onAssignDoctor(selectedMarker.id, doctorName);
+                    setSelectedMarker(null);
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Select a doctor" />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">
+                      ✕ Unassign
+                    </span>
+                  </SelectItem>
+                  {doctors.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.name}>
+                      <span style={{ color: doctor.color }}>
+                        ● {doctor.name}
                       </span>
                     </SelectItem>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.name}>
-                        <span style={{ color: doctor.color }}>
-                          ● {doctor.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedMarker.doctorName && selectedMarker.orderNumber && (
-                <div className="pt-3 border-t border-gray-200">
-                  <label className="text-sm font-medium">Visit Order:</label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        if (onReorder && selectedMarker.orderNumber! > 1) {
-                          onReorder(selectedMarker.doctorName!, selectedMarker.id, selectedMarker.orderNumber! - 1);
-                        }
-                      }}
-                      disabled={selectedMarker.orderNumber === 1}
-                      className="flex-1"
-                    >
-                      <ArrowUp className="w-4 h-4 mr-1" />
-                      Up
-                    </Button>
-                    
-                    <Select
-                      value={selectedMarker.orderNumber.toString()}
-                      onValueChange={(value) => {
-                        const newOrder = parseInt(value);
-                        if (onReorder && newOrder !== selectedMarker.orderNumber) {
-                          onReorder(selectedMarker.doctorName!, selectedMarker.id, newOrder);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-16">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white z-50">
-                        {Array.from({ 
-                          length: appointments.filter(a => a.doctorName === selectedMarker.doctorName).length 
-                        }, (_, i) => i + 1).map((num) => (
-                          <SelectItem key={num} value={num.toString()}>
-                            #{num}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        const maxOrder = appointments.filter(a => a.doctorName === selectedMarker.doctorName).length;
-                        if (onReorder && selectedMarker.orderNumber! < maxOrder) {
-                          onReorder(selectedMarker.doctorName!, selectedMarker.id, selectedMarker.orderNumber! + 1);
-                        }
-                      }}
-                      disabled={selectedMarker.orderNumber === appointments.filter(a => a.doctorName === selectedMarker.doctorName).length}
-                      className="flex-1"
-                    >
-                      <ArrowDown className="w-4 h-4 mr-1" />
-                      Down
-                    </Button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Position {selectedMarker.orderNumber} of {appointments.filter(a => a.doctorName === selectedMarker.doctorName).length}
-                  </p>
-                </div>
-              )}
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </InfoWindow>
