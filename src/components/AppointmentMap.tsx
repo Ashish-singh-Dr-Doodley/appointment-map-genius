@@ -12,6 +12,7 @@ interface AppointmentMapProps {
   onAppointmentSelect: (appointment: Appointment) => void;
   onDoctorSelect?: (doctor: Doctor) => void;
   onAssignDoctor?: (appointmentId: string, doctorName: string) => void;
+  onReorder?: (doctorName: string, appointmentId: string, newOrder: number) => void;
 }
 
 const mapContainerStyle = {
@@ -26,7 +27,7 @@ const defaultCenter = {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
 
-export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor }: AppointmentMapProps) => {
+export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor, onReorder }: AppointmentMapProps) => {
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);

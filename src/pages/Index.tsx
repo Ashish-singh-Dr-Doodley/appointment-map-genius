@@ -398,6 +398,7 @@ const Index = () => {
                         doctors={doctors}
                         onAppointmentSelect={setSelectedAppointment}
                         onAssignDoctor={handleAssignDoctor}
+                        onReorder={handleReorderAppointments}
                       />
                     </div>
                   </div>

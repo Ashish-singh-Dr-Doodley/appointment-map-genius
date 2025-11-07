@@ -3,16 +3,19 @@ import { Doctor } from '@/types/doctor';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, User, Stethoscope } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Stethoscope, ArrowUp, ArrowDown } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 interface DoctorAssignmentProps {
   appointment: Appointment | null;
   doctors: Doctor[];
+  appointments: Appointment[];
   onAssign: (appointmentId: string, doctorName: string) => void;
+  onReorder: (doctorName: string, appointmentId: string, newOrder: number) => void;
 }
 
-export const DoctorAssignment = ({ appointment, doctors, onAssign }: DoctorAssignmentProps) => {
+export const DoctorAssignment = ({ appointment, doctors, appointments, onAssign, onReorder }: DoctorAssignmentProps) => {
   const { toast } = useToast();
 
   const handleAssign = (doctorName: string) => {
@@ -83,9 +86,92 @@ export const DoctorAssignment = ({ appointment, doctors, onAssign }: DoctorAssig
           </div>
 
           {appointment.doctorName && (
-            <div className="p-3 bg-primary/10 rounded-lg">
-              <p className="text-sm font-medium">Currently Assigned:</p>
-              <p className="text-sm text-primary">{appointment.doctorName}</p>
+            <div className="p-3 bg-primary/10 rounded-lg space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Currently Assigned:</p>
+                  <p className="text-sm text-primary">{appointment.doctorName}</p>
+                </div>
+                {appointment.orderNumber && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Visit Order:</span>
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-semibold text-sm">
+                      {appointment.orderNumber}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {appointment.orderNumber && appointment.doctorName && (
+                <div className="pt-2 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground mb-2">Change visit order:</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        if (appointment.orderNumber! > 1) {
+                          onReorder(appointment.doctorName!, appointment.id, appointment.orderNumber! - 1);
+                          toast({
+                            title: "Order Updated",
+                            description: `Moved to position ${appointment.orderNumber! - 1}`,
+                          });
+                        }
+                      }}
+                      disabled={appointment.orderNumber === 1}
+                    >
+                      <ArrowUp className="w-4 h-4 mr-1" />
+                      Move Up
+                    </Button>
+                    <Select
+                      value={appointment.orderNumber.toString()}
+                      onValueChange={(value) => {
+                        const newOrder = parseInt(value);
+                        if (newOrder !== appointment.orderNumber) {
+                          onReorder(appointment.doctorName!, appointment.id, newOrder);
+                          toast({
+                            title: "Order Updated",
+                            description: `Moved to position ${newOrder}`,
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ 
+                          length: appointments.filter(a => a.doctorName === appointment.doctorName).length 
+                        }, (_, i) => i + 1).map((num) => (
+                          <SelectItem key={num} value={num.toString()}>
+                            {num}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        const maxOrder = appointments.filter(a => a.doctorName === appointment.doctorName).length;
+                        if (appointment.orderNumber! < maxOrder) {
+                          onReorder(appointment.doctorName!, appointment.id, appointment.orderNumber! + 1);
+                          toast({
+                            title: "Order Updated",
+                            description: `Moved to position ${appointment.orderNumber! + 1}`,
+                          });
+                        }
+                      }}
+                      disabled={appointment.orderNumber === appointments.filter(a => a.doctorName === appointment.doctorName).length}
+                    >
+                      <ArrowDown className="w-4 h-4 mr-1" />
+                      Move Down
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
