@@ -56,11 +56,11 @@ export const CoordinateStatus = ({ appointments }: CoordinateStatusProps) => {
         {withoutCoords.length > 0 && (
           <div className="p-3 bg-warning/10 rounded-lg">
             <p className="text-xs font-medium text-warning mb-2">
-              ⚠️ Add Lat/Long columns to your Google Sheet
+              ⚠️ Some locations couldn't be extracted
             </p>
             <p className="text-xs text-muted-foreground">
-              Appointments missing location data won't appear on the map. 
-              Add "Lat" and "Long" columns to your sheet for best results.
+              {withoutCoords.length} appointment{withoutCoords.length === 1 ? '' : 's'} missing coordinates. 
+              Ensure Google Maps links are valid in the Location column.
             </p>
           </div>
         )}
