@@ -77,11 +77,15 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
       const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
       const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
       
+      console.log(`Row ${index + 1} - Lat value:`, latValue, 'Long value:', lngValue);
+      
       if (latValue && lngValue) {
         const lat = parseFloat(latValue);
         const lng = parseFloat(lngValue);
+        console.log(`Row ${index + 1} - Parsed Lat:`, lat, 'Parsed Long:', lng);
         if (!isNaN(lat) && !isNaN(lng)) {
           coords = { lat, lng };
+          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - ${lat}, ${lng}`);
         }
       }
       
@@ -105,7 +109,7 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
       
       const appointment: Appointment = {
         id: `${row['Sr No'] || index}`,
-        srNo: row['Sr No'] || index,
+        srNo: parseInt(row['Sr No']) || index,
         petType: row['Pet Type'] || '',
         subCategory: row['Sub- category'] || '',
         queryDate: row['Query Date'] || '',
@@ -124,6 +128,12 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
         latitude: coords?.lat,
         longitude: coords?.lng,
       };
+      
+      console.log(`Row ${index + 1} final appointment:`, {
+        customerName: appointment.customerName,
+        latitude: appointment.latitude,
+        longitude: appointment.longitude
+      });
       
       appointments.push(appointment);
     }
