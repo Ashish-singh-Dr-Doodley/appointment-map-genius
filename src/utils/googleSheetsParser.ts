@@ -81,8 +81,9 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
       }
       
       // Method 1: Check for Lat/Long columns (fastest)
-      const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
-      const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      // Note: In the Google Sheet, the columns are SWAPPED - "Long" contains Lat and "Lat" contains Long
+      const latValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      const lngValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
       
       console.log(`Row ${index + 1} - Lat value:`, latValue, 'Long value:', lngValue);
       
