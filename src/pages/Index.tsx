@@ -24,6 +24,16 @@ const Index = () => {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Load doctors from localStorage
+    const savedDoctors = localStorage.getItem('doctors');
+    if (savedDoctors) {
+      try {
+        setDoctors(JSON.parse(savedDoctors));
+      } catch (error) {
+        console.error('Error loading saved doctors:', error);
+      }
+    }
+    
     // Auto-load sample data on mount
     loadSampleData();
   }, []);
@@ -87,11 +97,19 @@ const Index = () => {
   };
 
   const handleAddDoctor = (doctor: Doctor) => {
-    setDoctors(prev => [...prev, doctor]);
+    setDoctors(prev => {
+      const updated = [...prev, doctor];
+      localStorage.setItem('doctors', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleRemoveDoctor = (doctorId: string) => {
-    setDoctors(prev => prev.filter(d => d.id !== doctorId));
+    setDoctors(prev => {
+      const updated = prev.filter(d => d.id !== doctorId);
+      localStorage.setItem('doctors', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleRefreshMap = () => {
@@ -129,6 +147,7 @@ const Index = () => {
       const freshData = await fetchGoogleSheetData();
       setAppointments(freshData);
       setDoctors([]);
+      localStorage.removeItem('doctors');
       setSelectedAppointment(null);
       
       toast({
