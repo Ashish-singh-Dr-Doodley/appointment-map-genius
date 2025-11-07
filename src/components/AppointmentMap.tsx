@@ -44,9 +44,10 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
   useEffect(() => {
     if (!map) return;
 
+    const validDoctors = doctors.filter(d => d.latitude && d.longitude);
     const allPoints = [
       ...appointments.filter(a => a.latitude && a.longitude).map(a => ({ lat: a.latitude!, lng: a.longitude! })),
-      ...doctors.map(d => ({ lat: d.latitude, lng: d.longitude }))
+      ...validDoctors.map(d => ({ lat: d.latitude!, lng: d.longitude! }))
     ];
 
     if (allPoints.length === 0) return;
@@ -111,11 +112,11 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
         fullscreenControl: true,
       }}
     >
-      {/* Doctor markers */}
-      {doctors.map((doctor) => (
+      {/* Doctor markers - only for doctors with locations */}
+      {doctors.filter(d => d.latitude && d.longitude).map((doctor) => (
         <Marker
           key={doctor.id}
-          position={{ lat: doctor.latitude, lng: doctor.longitude }}
+          position={{ lat: doctor.latitude!, lng: doctor.longitude! }}
           onClick={() => {
             setSelectedDoctor(doctor);
             setSelectedMarker(null);
@@ -201,15 +202,19 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
       )}
 
       {/* Doctor InfoWindow */}
-      {selectedDoctor && (
+      {selectedDoctor && selectedDoctor.latitude && selectedDoctor.longitude && (
         <InfoWindow
           position={{ lat: selectedDoctor.latitude, lng: selectedDoctor.longitude }}
           onCloseClick={() => setSelectedDoctor(null)}
         >
           <div className="p-2 max-w-xs">
             <h3 className="font-semibold text-base mb-1">{selectedDoctor.name}</h3>
-            <p className="text-sm text-gray-600 mb-1">{selectedDoctor.specialty}</p>
-            <p className="text-sm">{selectedDoctor.phone}</p>
+            {selectedDoctor.specialty && (
+              <p className="text-sm text-gray-600 mb-1">{selectedDoctor.specialty}</p>
+            )}
+            {selectedDoctor.phone && (
+              <p className="text-sm">{selectedDoctor.phone}</p>
+            )}
           </div>
         </InfoWindow>
       )}

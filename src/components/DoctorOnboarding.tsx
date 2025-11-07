@@ -15,42 +15,13 @@ interface DoctorOnboardingProps {
 
 export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: DoctorOnboardingProps) => {
   const [name, setName] = useState('');
-  const [specialty, setSpecialty] = useState('');
-  const [phone, setPhone] = useState('');
-  const [startLocation, setStartLocation] = useState('');
   const { toast } = useToast();
 
-  const extractCoordinates = (url: string): { lat: number; lng: number } | null => {
-    const patterns = [
-      /@(-?\d+\.\d+),(-?\d+\.\d+)/,
-      /q=(-?\d+\.\d+),(-?\d+\.\d+)/,
-      /place\/[^/]+\/@(-?\d+\.\d+),(-?\d+\.\d+)/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) {
-        return { lat: parseFloat(match[1]), lng: parseFloat(match[2]) };
-      }
-    }
-    return null;
-  };
-
   const handleAddDoctor = () => {
-    if (!name || !specialty || !phone || !startLocation) {
+    if (!name.trim()) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const coords = extractCoordinates(startLocation);
-    if (!coords) {
-      toast({
-        title: "Invalid Location",
-        description: "Please enter a valid Google Maps URL",
+        description: "Please enter doctor name",
         variant: "destructive",
       });
       return;
@@ -58,23 +29,15 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
 
     const newDoctor: Doctor = {
       id: `doctor-${Date.now()}`,
-      name,
-      specialty,
-      phone,
-      startLocation,
-      latitude: coords.lat,
-      longitude: coords.lng,
+      name: name.trim(),
     };
 
     onAddDoctor(newDoctor);
     setName('');
-    setSpecialty('');
-    setPhone('');
-    setStartLocation('');
     
     toast({
       title: "Doctor Added",
-      description: `${name} has been successfully onboarded`,
+      description: `${name} has been successfully added`,
     });
   };
 
@@ -88,42 +51,13 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="name">Doctor Name</Label>
+          <Label htmlFor="name">Doctor Name *</Label>
           <Input
             id="name"
             placeholder="Dr. John Smith"
             value={name}
             onChange={(e) => setName(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="specialty">Specialty</Label>
-          <Input
-            id="specialty"
-            placeholder="Veterinary Surgeon"
-            value={specialty}
-            onChange={(e) => setSpecialty(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="phone">Phone Number</Label>
-          <Input
-            id="phone"
-            placeholder="+1 234 567 8900"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="location">Start Location (Google Maps URL)</Label>
-          <Input
-            id="location"
-            placeholder="https://maps.google.com/..."
-            value={startLocation}
-            onChange={(e) => setStartLocation(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleAddDoctor()}
           />
         </div>
 
@@ -143,11 +77,9 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
                 >
                   <div className="flex-1">
                     <p className="font-medium">{doctor.name}</p>
-                    <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                      <MapPin className="w-3 h-3" />
-                      {doctor.phone}
-                    </p>
+                    {doctor.specialty && (
+                      <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+                    )}
                   </div>
                   <Button
                     variant="ghost"
