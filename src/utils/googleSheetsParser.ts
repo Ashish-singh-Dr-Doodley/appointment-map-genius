@@ -85,38 +85,24 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
       
       // Method 1: Check for Lat/Long columns (fastest)
       // Handle various column name variations including typos
-      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'] || row['Latitutde'] || row['latitutde'];
+      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
       let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      
+      // Special case: Google Sheet has "Longitude" and "Latitutde" (with typo) but they're SWAPPED!
+      // The "Longitude" column actually contains latitude values
+      const longitudeCol = row['Longitude'];
+      const latitudeCol = row['Latitutde'] || row['latitutde'];
+      
+      if (longitudeCol && latitudeCol) {
+        // These columns are swapped in the sheet, so we swap them back
+        latValue = longitudeCol; // "Longitude" column has lat values
+        lngValue = latitudeCol;  // "Latitutde" column has lng values
+        console.log(`🔄 Row ${index + 1}: Using swapped Longitude/Latitutde columns`);
+      }
       
       console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
       
-      // Check if columns might be swapped
-      // Case 1: Lat is empty but Long has a value that looks like latitude
-      if ((!latValue || latValue === '') && lngValue && lngValue !== '') {
-        const possibleLat = parseFloat(lngValue);
-        if (!isNaN(possibleLat) && possibleLat >= -90 && possibleLat <= 90) {
-          console.warn(`⚠️ Row ${index + 1}: Long column has lat-range value (${lngValue}), likely swapped - using it as latitude`);
-          latValue = lngValue;
-          lngValue = ''; // Clear since we don't have the real longitude
-        }
-      }
-      
-      // Case 2: Both values exist but might be in wrong columns - check if swapped
-      if (latValue && lngValue) {
-        const lat = parseFloat(latValue);
-        const lng = parseFloat(lngValue);
-        
-        if (!isNaN(lat) && !isNaN(lng)) {
-          // If "Lat" is outside -90 to 90 but "Long" is inside, they're swapped
-          if ((lat < -90 || lat > 90) && (lng >= -90 && lng <= 90)) {
-            console.warn(`⚠️ Row ${index + 1}: Detected swapped columns (Lat=${lat}, Long=${lng}), correcting...`);
-            const temp = latValue;
-            latValue = lngValue;
-            lngValue = temp;
-          }
-        }
-      }
-      
+      // Validate and parse the coordinates
       if (latValue && lngValue) {
         const lat = parseFloat(latValue);
         const lng = parseFloat(lngValue);
@@ -126,7 +112,7 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
             lat >= -90 && lat <= 90 && 
             lng >= -180 && lng <= 180) {
           coords = { lat, lng };
-          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - Lat: ${lat}, Lng: ${lng}`);
+          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using coordinates - Lat: ${lat}, Lng: ${lng}`);
         } else {
           console.warn(`⚠️ Row ${index + 1}: Invalid coordinates - Lat: ${lat}, Lng: ${lng}`);
         }
