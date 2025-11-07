@@ -80,36 +80,38 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
         console.log(`⏳ Progress: ${processedCount}/${totalRows} appointments processed`);
       }
       
-      // Method 1: Try to fetch from Google Maps URL in Location column (column L)
-      if (row['Location']) {
+      // Method 1: Check for Lat/Long columns (fastest)
+      // Note: In the Google Sheet, the columns are SWAPPED - "Long" contains Lat and "Lat" contains Long
+      const latValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+      const lngValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+      
+      console.log(`Row ${index + 1} - Lat value:`, latValue, 'Long value:', lngValue);
+      
+      if (latValue && lngValue) {
+        const lat = parseFloat(latValue);
+        const lng = parseFloat(lngValue);
+        console.log(`Row ${index + 1} - Parsed Lat:`, lat, 'Parsed Long:', lng);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          coords = { lat, lng };
+          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - ${lat}, ${lng}`);
+        }
+      }
+      
+      // Method 2: Fetch from Google Maps URL (if no lat/long columns)
+      if (!coords && row['Location']) {
         const locationUrl = row['Location'].trim();
         
         if (locationUrl) {
           coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
           
           if (coords) {
-            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Coordinates from URL - ${coords.lat}, ${coords.lng}`);
+            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Coordinates found - ${coords.lat}, ${coords.lng}`);
           } else {
             console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Could not fetch coordinates from URL: ${locationUrl}`);
           }
           
           // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 300));
-        }
-      }
-      
-      // Method 2: Fallback to Lat/Long columns if URL parsing failed
-      if (!coords) {
-        const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
-        const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
-        
-        if (latValue && lngValue) {
-          const lat = parseFloat(latValue);
-          const lng = parseFloat(lngValue);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            coords = { lat, lng };
-            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using Lat/Long columns - ${lat}, ${lng}`);
-          }
         }
       }
       
