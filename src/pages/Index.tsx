@@ -6,6 +6,7 @@ import { AppointmentMap } from '@/components/AppointmentMap';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { MapControls } from '@/components/MapControls';
 import { CoordinateStatus } from '@/components/CoordinateStatus';
+import { DoctorScheduleList } from '@/components/DoctorScheduleList';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseExcelFile } from '@/utils/excelParser';
@@ -105,11 +106,47 @@ const Index = () => {
 
   const handleAssignDoctor = (appointmentId: string, doctorName: string) => {
     setAppointments(prev => {
-      const updated = prev.map(apt =>
-        apt.id === appointmentId 
-          ? { ...apt, doctorName: doctorName || undefined } 
-          : apt
-      );
+      const appointment = prev.find(a => a.id === appointmentId);
+      if (!appointment) return prev;
+
+      const oldDoctorName = appointment.doctorName;
+      const newDoctorName = doctorName || undefined;
+
+      let updated = [...prev];
+
+      // If unassigning (newDoctorName is undefined)
+      if (!newDoctorName) {
+        updated = updated.map(apt => {
+          if (apt.id === appointmentId) {
+            return { ...apt, doctorName: undefined, orderNumber: undefined };
+          }
+          // Renumber remaining appointments for the old doctor
+          if (apt.doctorName === oldDoctorName && apt.orderNumber && appointment.orderNumber && apt.orderNumber > appointment.orderNumber) {
+            return { ...apt, orderNumber: apt.orderNumber - 1 };
+          }
+          return apt;
+        });
+      }
+      // If assigning or reassigning
+      else {
+        // Get the next order number for the new doctor
+        const doctorAppointments = prev.filter(a => a.doctorName === newDoctorName);
+        const nextOrderNumber = doctorAppointments.length > 0
+          ? Math.max(...doctorAppointments.map(a => a.orderNumber || 0)) + 1
+          : 1;
+
+        updated = updated.map(apt => {
+          if (apt.id === appointmentId) {
+            return { ...apt, doctorName: newDoctorName, orderNumber: nextOrderNumber };
+          }
+          // If reassigning from another doctor, renumber that doctor's list
+          if (oldDoctorName && apt.doctorName === oldDoctorName && apt.orderNumber && appointment.orderNumber && apt.orderNumber > appointment.orderNumber) {
+            return { ...apt, orderNumber: apt.orderNumber - 1 };
+          }
+          return apt;
+        });
+      }
+
       localStorage.setItem('appointments', JSON.stringify(updated));
       return updated;
     });
@@ -127,6 +164,52 @@ const Index = () => {
     setDoctors(prev => {
       const updated = prev.filter(d => d.id !== doctorId);
       localStorage.setItem('doctors', JSON.stringify(updated));
+      return updated;
+    });
+    
+    // Unassign all appointments from this doctor
+    const doctorToRemove = doctors.find(d => d.id === doctorId);
+    if (doctorToRemove) {
+      setAppointments(prev => {
+        const updated = prev.map(apt =>
+          apt.doctorName === doctorToRemove.name
+            ? { ...apt, doctorName: undefined, orderNumber: undefined }
+            : apt
+        );
+        localStorage.setItem('appointments', JSON.stringify(updated));
+        return updated;
+      });
+    }
+  };
+
+  const handleReorderAppointments = (doctorName: string, appointmentId: string, newOrder: number) => {
+    setAppointments(prev => {
+      const doctorAppointments = prev
+        .filter(a => a.doctorName === doctorName)
+        .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
+      
+      const appointmentIndex = doctorAppointments.findIndex(a => a.id === appointmentId);
+      if (appointmentIndex === -1) return prev;
+
+      // Remove from old position
+      const [movedAppointment] = doctorAppointments.splice(appointmentIndex, 1);
+      
+      // Insert at new position (newOrder is 1-based, convert to 0-based index)
+      doctorAppointments.splice(newOrder - 1, 0, movedAppointment);
+
+      // Renumber all appointments for this doctor
+      const renumbered = doctorAppointments.map((apt, index) => ({
+        ...apt,
+        orderNumber: index + 1,
+      }));
+
+      // Update the main appointments array
+      const updated = prev.map(apt => {
+        const renumberedApt = renumbered.find(r => r.id === apt.id);
+        return renumberedApt || apt;
+      });
+
+      localStorage.setItem('appointments', JSON.stringify(updated));
       return updated;
     });
   };
@@ -324,23 +407,17 @@ const Index = () => {
               {/* Scheduled Appointments Tab */}
               <TabsContent value="scheduled">
                 <div className="bg-card rounded-lg border p-6">
-                  <h2 className="text-lg font-semibold mb-4">Scheduled Appointments</h2>
-                  <div className="space-y-2">
-                    {appointments.filter(a => a.doctorName).map(apt => (
-                      <div key={apt.id} className="p-4 bg-muted/20 rounded-lg">
-                        <div className="flex justify-between">
-                          <div>
-                            <p className="font-medium">{apt.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{apt.petType} - {apt.subCategory}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-primary">{apt.doctorName}</p>
-                            <p className="text-xs text-muted-foreground">{apt.visitDate} {apt.visitTime}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold">Scheduled Appointments by Doctor</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      View and reorder appointments for each doctor. Use the arrows to adjust visit sequence.
+                    </p>
                   </div>
+                  <DoctorScheduleList
+                    doctors={doctors}
+                    appointments={appointments}
+                    onReorder={handleReorderAppointments}
+                  />
                 </div>
               </TabsContent>
 

@@ -7,6 +7,7 @@ export interface Appointment {
   mobileNumber: string;
   customerName: string;
   doctorName?: string;
+  orderNumber?: number;
   sourceOfOrder: string;
   agentName: string;
   location: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Polyline } from '@react-google-maps/api';
 import { Appointment } from '@/types/appointment';
 import { Doctor } from '@/types/doctor';
 import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
@@ -95,6 +95,41 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
 
   const validAppointments = appointments.filter(a => a.latitude && a.longitude);
 
+  // Get route lines for each doctor
+  const getDoctorRoutes = () => {
+    const routes: { doctor: Doctor; path: google.maps.LatLngLiteral[] }[] = [];
+
+    doctors.forEach((doctor) => {
+      const doctorAppointments = validAppointments
+        .filter(a => a.doctorName === doctor.name)
+        .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
+
+      if (doctorAppointments.length > 0) {
+        const path: google.maps.LatLngLiteral[] = [];
+        
+        // Start from doctor's location if available
+        if (doctor.latitude && doctor.longitude) {
+          path.push({ lat: doctor.latitude, lng: doctor.longitude });
+        }
+        
+        // Add appointments in order
+        doctorAppointments.forEach(apt => {
+          if (apt.latitude && apt.longitude) {
+            path.push({ lat: apt.latitude, lng: apt.longitude });
+          }
+        });
+
+        if (path.length > 1) {
+          routes.push({ doctor, path });
+        }
+      }
+    });
+
+    return routes;
+  };
+
+  const routes = getDoctorRoutes();
+
   return (
     <GoogleMap
       mapContainerStyle={mapContainerStyle}
@@ -135,6 +170,20 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
         />
       ))}
 
+      {/* Route lines for each doctor */}
+      {routes.map(({ doctor, path }) => (
+        <Polyline
+          key={`route-${doctor.id}`}
+          path={path}
+          options={{
+            strokeColor: doctor.color,
+            strokeOpacity: 0.7,
+            strokeWeight: 3,
+            geodesic: true,
+          }}
+        />
+      ))}
+
       {/* Appointment markers */}
       {validAppointments.map((appointment) => (
         <Marker
@@ -155,10 +204,10 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
             strokeWeight: 2,
             scale: appointment.doctorName ? 1 : 10,
           }}
-          label={appointment.doctorName ? {
-            text: appointment.doctorName.charAt(0).toUpperCase(),
+          label={appointment.doctorName && appointment.orderNumber ? {
+            text: appointment.orderNumber.toString(),
             color: '#ffffff',
-            fontSize: '11px',
+            fontSize: '12px',
             fontWeight: 'bold',
           } : undefined}
         />
