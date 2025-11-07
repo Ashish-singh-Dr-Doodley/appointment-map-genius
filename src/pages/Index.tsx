@@ -34,7 +34,22 @@ const Index = () => {
       }
     }
     
-    // Auto-load sample data on mount
+    // Load appointments from localStorage if they exist
+    const savedAppointments = localStorage.getItem('appointments');
+    if (savedAppointments) {
+      try {
+        setAppointments(JSON.parse(savedAppointments));
+        toast({
+          title: "Data Restored",
+          description: "Previous appointments and assignments loaded from cache.",
+        });
+        return; // Don't load from Google Sheets if we have cached data
+      } catch (error) {
+        console.error('Error loading saved appointments:', error);
+      }
+    }
+    
+    // Auto-load sample data on mount if no cached data
     loadSampleData();
   }, []);
 
@@ -89,11 +104,13 @@ const Index = () => {
   };
 
   const handleAssignDoctor = (appointmentId: string, doctorName: string) => {
-    setAppointments(prev =>
-      prev.map(apt =>
+    setAppointments(prev => {
+      const updated = prev.map(apt =>
         apt.id === appointmentId ? { ...apt, doctorName } : apt
-      )
-    );
+      );
+      localStorage.setItem('appointments', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleAddDoctor = (doctor: Doctor) => {
@@ -148,6 +165,7 @@ const Index = () => {
       setAppointments(freshData);
       setDoctors([]);
       localStorage.removeItem('doctors');
+      localStorage.removeItem('appointments');
       setSelectedAppointment(null);
       
       toast({
