@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Appointment } from '@/types/appointment';
 import { Doctor } from '@/types/doctor';
 import { FileUpload } from '@/components/FileUpload';
@@ -8,6 +8,7 @@ import { DoctorAssignment } from '@/components/DoctorAssignment';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { Stethoscope, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { parseExcelFile } from '@/utils/excelParser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const Index = () => {
@@ -15,6 +16,27 @@ const Index = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [mapKey, setMapKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Auto-load sample data on mount
+    loadSampleData();
+  }, []);
+
+  const loadSampleData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/sample-data.xlsx');
+      const blob = await response.blob();
+      const file = new File([blob], 'sample-data.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const parsedAppointments = await parseExcelFile(file);
+      setAppointments(parsedAppointments);
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleDataParsed = (parsedAppointments: Appointment[]) => {
     setAppointments(parsedAppointments);
@@ -58,7 +80,11 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        {appointments.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-muted-foreground">Loading sample appointments...</p>
+          </div>
+        ) : appointments.length === 0 ? (
           <div className="max-w-2xl mx-auto">
             <Tabs defaultValue="upload" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
