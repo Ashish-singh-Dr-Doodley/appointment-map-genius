@@ -5,6 +5,7 @@ import { FileUpload } from '@/components/FileUpload';
 import { AppointmentMap } from '@/components/AppointmentMap';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { MapControls } from '@/components/MapControls';
+import { CoordinateStatus } from '@/components/CoordinateStatus';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseExcelFile } from '@/utils/excelParser';
@@ -230,7 +231,9 @@ const Index = () => {
 
                   <div className="grid grid-cols-12 gap-4">
                     {/* Map Controls Sidebar */}
-                    <div className="col-span-3">
+                    <div className="col-span-3 space-y-4">
+                      <CoordinateStatus appointments={appointments} />
+                      
                       <MapControls
                         totalAppointments={filteredAppointments.length}
                         assignedCount={assignedCount}
