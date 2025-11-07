@@ -8,7 +8,9 @@ import { MapControls } from '@/components/MapControls';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseExcelFile } from '@/utils/excelParser';
+import { fetchGoogleSheetData, refreshGoogleSheetData } from '@/utils/googleSheetsParser';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -18,6 +20,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [doctorFilter, setDoctorFilter] = useState('all');
+  const { toast } = useToast();
 
   useEffect(() => {
     // Auto-load sample data on mount
@@ -27,13 +30,19 @@ const Index = () => {
   const loadSampleData = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/sample-data.xlsx');
-      const blob = await response.blob();
-      const file = new File([blob], 'sample-data.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const parsedAppointments = await parseExcelFile(file);
+      const parsedAppointments = await fetchGoogleSheetData();
       setAppointments(parsedAppointments);
+      toast({
+        title: "Data Loaded",
+        description: `Successfully loaded ${parsedAppointments.length} appointments from Google Sheets`,
+      });
     } catch (error) {
-      console.error('Error loading sample data:', error);
+      console.error('Error loading Google Sheets data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load data from Google Sheets. Make sure the sheet is publicly accessible.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -63,10 +72,53 @@ const Index = () => {
     setMapKey(prev => prev + 1);
   };
 
-  const handleResetAll = () => {
-    setAppointments([]);
-    setDoctors([]);
-    setSelectedAppointment(null);
+  const handleRefreshData = async () => {
+    setIsLoading(true);
+    try {
+      const updatedAppointments = await refreshGoogleSheetData(appointments);
+      const newCount = updatedAppointments.length - appointments.length;
+      setAppointments(updatedAppointments);
+      
+      toast({
+        title: "Data Refreshed",
+        description: newCount > 0 
+          ? `Added ${newCount} new appointment${newCount === 1 ? '' : 's'}` 
+          : "No new appointments found",
+      });
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh data from Google Sheets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetAll = async () => {
+    setIsLoading(true);
+    try {
+      const freshData = await fetchGoogleSheetData();
+      setAppointments(freshData);
+      setDoctors([]);
+      setSelectedAppointment(null);
+      
+      toast({
+        title: "Data Reset",
+        description: `Loaded fresh data: ${freshData.length} appointments`,
+      });
+    } catch (error) {
+      console.error('Error resetting data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to reset data from Google Sheets",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -109,11 +161,21 @@ const Index = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={loadSampleData}>
-                <RefreshCw className="w-4 h-4 mr-2" />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleRefreshData}
+                disabled={isLoading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Refresh Data
               </Button>
-              <Button variant="destructive" size="sm" onClick={handleResetAll}>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleResetAll}
+                disabled={isLoading}
+              >
                 <RotateCcw className="w-4 h-4 mr-2" />
                 Reset All Data
               </Button>
