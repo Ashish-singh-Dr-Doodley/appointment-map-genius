@@ -70,14 +70,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
       return getDoctorColor(appointment.doctorName, doctors);
     }
     
-    // Otherwise use status color
-    const statusColors: Record<string, string> = {
-      Pending: '#facc15',
-      Confirmed: '#22c55e',
-      Completed: '#3b82f6',
-      Cancelled: '#ef4444',
-    };
-    return statusColors[appointment.status] || '#3b82f6';
+    // Unassigned appointments are grey
+    return '#9ca3af';
   };
 
   if (loadError) {
@@ -152,12 +146,14 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
             onAppointmentSelect(appointment);
           }}
           icon={{
-            path: google.maps.SymbolPath.CIRCLE,
+            path: appointment.doctorName 
+              ? 'M -8,-8 L 8,-8 L 8,8 L -8,8 Z' // Square for assigned
+              : google.maps.SymbolPath.CIRCLE, // Circle for unassigned
             fillColor: getMarkerColor(appointment),
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 2,
-            scale: appointment.doctorName ? 12 : 10,
+            scale: appointment.doctorName ? 1 : 10,
           }}
           label={appointment.doctorName ? {
             text: appointment.doctorName.charAt(0).toUpperCase(),
