@@ -210,6 +210,15 @@ const Index = () => {
       });
 
       localStorage.setItem('appointments', JSON.stringify(updated));
+      
+      // Update selected appointment if it's the one being reordered
+      if (selectedAppointment?.id === appointmentId) {
+        const updatedAppointment = updated.find(a => a.id === appointmentId);
+        if (updatedAppointment) {
+          setSelectedAppointment(updatedAppointment);
+        }
+      }
+      
       return updated;
     });
   };
