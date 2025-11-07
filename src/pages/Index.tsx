@@ -106,7 +106,9 @@ const Index = () => {
   const handleAssignDoctor = (appointmentId: string, doctorName: string) => {
     setAppointments(prev => {
       const updated = prev.map(apt =>
-        apt.id === appointmentId ? { ...apt, doctorName } : apt
+        apt.id === appointmentId 
+          ? { ...apt, doctorName: doctorName || undefined } 
+          : apt
       );
       localStorage.setItem('appointments', JSON.stringify(updated));
       return updated;

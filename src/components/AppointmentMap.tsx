@@ -194,9 +194,11 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
             <div className="mt-3 space-y-2">
               <label className="text-sm font-medium">Assign Doctor:</label>
               <Select
-                value={selectedMarker.doctorName || ''}
-                onValueChange={(doctorName) => {
+                value={selectedMarker.doctorName || 'unassigned'}
+                onValueChange={(value) => {
                   if (onAssignDoctor) {
+                    // If "unassigned" is selected, pass empty string to unassign
+                    const doctorName = value === 'unassigned' ? '' : value;
                     onAssignDoctor(selectedMarker.id, doctorName);
                     setSelectedMarker(null);
                   }
@@ -206,6 +208,11 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
                   <SelectValue placeholder="Select a doctor" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">
+                      ✕ Unassign
+                    </span>
+                  </SelectItem>
                   {doctors.map((doctor) => (
                     <SelectItem key={doctor.id} value={doctor.name}>
                       <span style={{ color: doctor.color }}>
