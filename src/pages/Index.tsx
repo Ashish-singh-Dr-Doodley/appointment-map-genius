@@ -29,13 +29,7 @@ const Index = () => {
   }, []);
 
   const loadSampleData = async () => {
-    setIsLoading(true);
     try {
-      toast({
-        title: "Loading Data",
-        description: "Fetching appointments and coordinates from Google Sheets...",
-      });
-      
       const parsedAppointments = await fetchGoogleSheetData();
       setAppointments(parsedAppointments);
       
@@ -52,8 +46,6 @@ const Index = () => {
         description: "Failed to load data. Make sure the sheet is publicly accessible.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -224,16 +216,8 @@ const Index = () => {
       </header>
 
       <main className="container mx-auto px-6 py-6">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center h-96 space-y-4">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            <p className="text-muted-foreground">Loading and geocoding appointments...</p>
-            <p className="text-sm text-muted-foreground">This may take a moment as we fetch coordinates from Google Maps</p>
-          </div>
-        ) : (
-          <>
-            {/* Tab Navigation */}
-            <Tabs defaultValue="maps" className="w-full">
+        {/* Tab Navigation */}
+        <Tabs defaultValue="maps" className="w-full">
               <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
                 <TabsTrigger value="maps" className="flex items-center gap-2">
                   <MapPin className="w-4 h-4" />
@@ -355,8 +339,6 @@ const Index = () => {
                 </div>
               </TabsContent>
             </Tabs>
-          </>
-        )}
       </main>
     </div>
   );
