@@ -20,8 +20,8 @@ const defaultCenter = {
 };
 
 export const AppointmentMap = ({ appointments, onAppointmentSelect }: AppointmentMapProps) => {
-  const [apiKey, setApiKey] = useState('');
-  const [apiKeyEntered, setApiKeyEntered] = useState(false);
+  const [apiKey, setApiKey] = useState('AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto');
+  const [apiKeyEntered, setApiKeyEntered] = useState(true);
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
 
