@@ -1,33 +1,9 @@
 import { Appointment } from '@/types/appointment';
-import { extractCoordinatesFromUrl } from './excelParser';
+import { fetchCoordinatesFromGoogleMapsUrl } from './coordinateFetcher';
 
 const SHEET_ID = '1qBQy51cOe7D06gWFskQxar3oB8ZtGzeyBnkQUIcZ8iw';
 const GID = '0';
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-
-// Geocode using Google Geocoding API (if available) or use a free alternative
-const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-  if (!address) return null;
-  
-  try {
-    // Using Nominatim (free, no API key required)
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
-    );
-    const data = await response.json();
-    
-    if (data && data.length > 0) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon)
-      };
-    }
-  } catch (error) {
-    console.error('Geocoding failed:', error);
-  }
-  
-  return null;
-};
 
 // Parse CSV text to JSON
 const parseCSV = (csvText: string): any[] => {
@@ -82,17 +58,22 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
     console.log(`📊 Parsed ${jsonData.length} rows from sheet`);
     
     const appointments: Appointment[] = [];
+    let processedCount = 0;
+    const totalRows = jsonData.length;
     
-    for (let index = 0; index < Math.min(jsonData.length, 50); index++) {
+    console.log(`📊 Processing ${totalRows} appointments...`);
+    
+    for (let index = 0; index < totalRows; index++) {
       const row = jsonData[index];
       let coords = null;
       
-      console.log(`\n--- Processing Row ${index + 1} ---`);
-      console.log('Customer:', row['Customer Name']);
-      console.log('Location URL:', row['Location']);
-      console.log('Address:', row['Detailed address']);
+      // Progress indicator
+      processedCount++;
+      if (processedCount % 5 === 0 || processedCount === totalRows) {
+        console.log(`⏳ Progress: ${processedCount}/${totalRows} appointments processed`);
+      }
       
-      // Method 1: Check for Lat/Long columns
+      // Method 1: Check for Lat/Long columns (fastest)
       const latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
       const lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
       
@@ -101,38 +82,25 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
         const lng = parseFloat(lngValue);
         if (!isNaN(lat) && !isNaN(lng)) {
           coords = { lat, lng };
-          console.log('✅ Method 1: Found in Lat/Long columns:', coords);
         }
       }
       
-      // Method 2: Extract from Location URL
+      // Method 2: Fetch from Google Maps URL (if no lat/long columns)
       if (!coords && row['Location']) {
-        coords = extractCoordinatesFromUrl(row['Location']);
-        if (coords) {
-          console.log('✅ Method 2: Extracted from URL:', coords);
-        } else {
-          console.log('❌ Method 2: Could not extract from URL');
-        }
-      }
-      
-      // Method 3: Geocode the detailed address as fallback
-      if (!coords && row['Detailed address']) {
-        console.log('🔍 Method 3: Trying to geocode address...');
-        coords = await geocodeAddress(row['Detailed address'] + ', Bengaluru, India');
-        if (coords) {
-          console.log('✅ Method 3: Geocoded from address:', coords);
-        } else {
-          console.log('❌ Method 3: Geocoding failed');
-        }
+        const locationUrl = row['Location'].trim();
         
-        // Add delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      if (coords) {
-        console.log('✅ FINAL: Coordinates found:', coords);
-      } else {
-        console.log('❌ FINAL: No coordinates found for this row');
+        if (locationUrl) {
+          coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
+          
+          if (coords) {
+            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Coordinates found - ${coords.lat}, ${coords.lng}`);
+          } else {
+            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Could not fetch coordinates from URL: ${locationUrl}`);
+          }
+          
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
       }
       
       const appointment: Appointment = {
@@ -161,15 +129,15 @@ export const fetchGoogleSheetData = async (): Promise<Appointment[]> => {
     }
     
     const withCoords = appointments.filter(a => a.latitude && a.longitude).length;
-    console.log(`\n✅ SUMMARY: ${appointments.length} appointments total, ${withCoords} with coordinates`);
+    console.log(`\n✅ COMPLETE: ${appointments.length} appointments loaded, ${withCoords} with coordinates (${Math.round(withCoords/appointments.length*100)}%)`);
     
     if (withCoords === 0) {
-      console.error('⚠️ NO COORDINATES FOUND!');
-      console.error('Possible issues:');
-      console.error('1. Sheet needs Lat/Long columns');
-      console.error('2. Location URLs are shortened and cannot be expanded');
-      console.error('3. Detailed addresses could not be geocoded');
-      console.error('\n💡 SOLUTION: Add Lat and Long columns to your Google Sheet');
+      console.error('\n⚠️ NO COORDINATES FOUND!');
+      console.error('💡 SOLUTION: Add "Lat" and "Long" columns to your Google Sheet with coordinate values');
+      console.error('   Example: Lat: 12.9716, Long: 77.5946');
+    } else if (withCoords < appointments.length) {
+      console.warn(`\n⚠️ ${appointments.length - withCoords} appointments are missing coordinates`);
+      console.warn('💡 Add Lat/Long columns to improve coverage');
     }
     
     return appointments;

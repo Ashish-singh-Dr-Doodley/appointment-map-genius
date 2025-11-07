@@ -31,17 +31,25 @@ const Index = () => {
   const loadSampleData = async () => {
     setIsLoading(true);
     try {
+      toast({
+        title: "Loading Data",
+        description: "Fetching appointments and coordinates from Google Sheets...",
+      });
+      
       const parsedAppointments = await fetchGoogleSheetData();
       setAppointments(parsedAppointments);
+      
+      const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
+      
       toast({
         title: "Data Loaded",
-        description: `Successfully loaded ${parsedAppointments.length} appointments from Google Sheets`,
+        description: `${parsedAppointments.length} appointments loaded. ${withCoords} with map locations.`,
       });
     } catch (error) {
       console.error('Error loading Google Sheets data:', error);
       toast({
         title: "Error",
-        description: "Failed to load data from Google Sheets. Make sure the sheet is publicly accessible.",
+        description: "Failed to load data. Make sure the sheet is publicly accessible.",
         variant: "destructive",
       });
     } finally {
@@ -192,8 +200,10 @@ const Index = () => {
 
       <main className="container mx-auto px-6 py-6">
         {isLoading ? (
-          <div className="flex items-center justify-center h-96">
-            <p className="text-muted-foreground">Loading appointments...</p>
+          <div className="flex flex-col items-center justify-center h-96 space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground">Loading and geocoding appointments...</p>
+            <p className="text-sm text-muted-foreground">This may take a moment as we fetch coordinates from Google Maps</p>
           </div>
         ) : (
           <>
