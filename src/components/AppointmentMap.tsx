@@ -64,10 +64,10 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
     map.fitBounds(bounds, padding);
   }, [map, appointments, doctors]);
 
-  const getMarkerColor = (appointment: Appointment, uniqueDoctorNames: string[]): string => {
+  const getMarkerColor = (appointment: Appointment): string => {
     // If appointment has a doctor assigned, use doctor's color
     if (appointment.doctorName) {
-      return getDoctorColor(appointment.doctorName, uniqueDoctorNames);
+      return getDoctorColor(appointment.doctorName, doctors);
     }
     
     // Otherwise use status color
@@ -100,7 +100,6 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
   }
 
   const validAppointments = appointments.filter(a => a.latitude && a.longitude);
-  const uniqueDoctorNames = getUniqueDoctorNames(appointments);
 
   return (
     <GoogleMap
@@ -154,7 +153,7 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           }}
           icon={{
             path: google.maps.SymbolPath.CIRCLE,
-            fillColor: getMarkerColor(appointment, uniqueDoctorNames),
+            fillColor: getMarkerColor(appointment),
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 2,
@@ -188,8 +187,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
               <span 
                 className="font-semibold"
                 style={{ color: selectedMarker.doctorName 
-                  ? getDoctorColor(selectedMarker.doctorName, uniqueDoctorNames)
-                  : getMarkerColor(selectedMarker, uniqueDoctorNames) 
+                  ? getDoctorColor(selectedMarker.doctorName, doctors)
+                  : getMarkerColor(selectedMarker) 
                 }}
               >
                 {selectedMarker.status}
@@ -213,7 +212,7 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
                 <SelectContent>
                   {doctors.map((doctor) => (
                     <SelectItem key={doctor.id} value={doctor.name}>
-                      <span style={{ color: getDoctorColor(doctor.name, uniqueDoctorNames) }}>
+                      <span style={{ color: doctor.color }}>
                         ● {doctor.name}
                       </span>
                     </SelectItem>

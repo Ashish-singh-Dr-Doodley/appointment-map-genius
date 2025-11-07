@@ -15,6 +15,7 @@ interface DoctorOnboardingProps {
 
 export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: DoctorOnboardingProps) => {
   const [name, setName] = useState('');
+  const [color, setColor] = useState('#3b82f6');
   const { toast } = useToast();
 
   const handleAddDoctor = () => {
@@ -30,10 +31,12 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
     const newDoctor: Doctor = {
       id: `doctor-${Date.now()}`,
       name: name.trim(),
+      color: color,
     };
 
     onAddDoctor(newDoctor);
     setName('');
+    setColor('#3b82f6');
     
     toast({
       title: "Doctor Added",
@@ -61,6 +64,27 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
           />
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="color">Doctor Color *</Label>
+          <div className="flex gap-2 items-center">
+            <Input
+              id="color"
+              type="color"
+              value={color}
+              onChange={(e) => setColor(e.target.value)}
+              className="w-20 h-10 cursor-pointer"
+            />
+            <div 
+              className="flex-1 h-10 rounded-md border flex items-center px-3"
+              style={{ backgroundColor: color }}
+            >
+              <span className="text-sm font-medium text-white mix-blend-difference">
+                {color}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <Button onClick={handleAddDoctor} className="w-full">
           <UserPlus className="w-4 h-4 mr-2" />
           Add Doctor
@@ -75,11 +99,17 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
                   key={doctor.id}
                   className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium">{doctor.name}</p>
-                    {doctor.specialty && (
-                      <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
-                    )}
+                  <div className="flex items-center gap-3 flex-1">
+                    <div 
+                      className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                      style={{ backgroundColor: doctor.color }}
+                    />
+                    <div>
+                      <p className="font-medium">{doctor.name}</p>
+                      {doctor.specialty && (
+                        <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

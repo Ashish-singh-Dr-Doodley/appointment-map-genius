@@ -18,8 +18,13 @@ export const DOCTOR_COLORS = [
   '#ec4899', // pink
 ];
 
-// Get a consistent color for a doctor name
-export const getDoctorColor = (doctorName: string, allDoctorNames: string[]): string => {
+// Get a consistent color for a doctor - now uses their assigned color
+export const getDoctorColor = (doctorName: string, doctors: any[]): string => {
+  const doctor = doctors.find(d => d.name === doctorName);
+  if (doctor?.color) return doctor.color;
+  
+  // Fallback to old behavior if doctor not found
+  const allDoctorNames = doctors.map(d => d.name);
   const index = allDoctorNames.indexOf(doctorName);
   if (index === -1) return '#3b82f6'; // Default blue
   return DOCTOR_COLORS[index % DOCTOR_COLORS.length];
