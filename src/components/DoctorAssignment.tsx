@@ -49,9 +49,9 @@ export const DoctorAssignment = ({ appointment, doctors, onAssign }: DoctorAssig
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Appointment Details</CardTitle>
+    <Card className="shadow-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Appointment Details</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-3">

@@ -75,6 +75,7 @@ export default {
       },
       boxShadow: {
         'elegant': 'var(--shadow-elegant)',
+        'card': '0 2px 8px rgba(0, 0, 0, 0.05)',
       },
       borderRadius: {
         lg: "var(--radius)",

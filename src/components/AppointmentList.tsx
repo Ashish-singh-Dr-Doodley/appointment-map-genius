@@ -22,14 +22,16 @@ export const AppointmentList = ({
   };
 
   return (
-    <div className="space-y-3">
-      <h2 className="text-xl font-semibold mb-4">Appointments ({appointments.length})</h2>
+    <div className="space-y-3 h-full">
+      <h2 className="text-lg font-semibold">Appointments ({appointments.length})</h2>
       <div className="space-y-2 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
         {appointments.map((appointment) => (
-          <Card
+          <div
             key={appointment.id}
-            className={`p-4 cursor-pointer transition-all hover:shadow-md ${
-              selectedAppointment?.id === appointment.id ? 'ring-2 ring-primary' : ''
+            className={`p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+              selectedAppointment?.id === appointment.id
+                ? 'border-primary bg-primary/5 shadow-md'
+                : 'border-border bg-card hover:border-primary/50'
             }`}
             onClick={() => onSelectAppointment(appointment)}
           >
@@ -85,7 +87,7 @@ export const AppointmentList = ({
             <div className="mt-1">
               <p className="text-sm font-medium text-primary">₹{appointment.baseCharges}</p>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>

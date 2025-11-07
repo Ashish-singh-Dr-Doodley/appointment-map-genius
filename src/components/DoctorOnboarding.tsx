@@ -79,9 +79,9 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+    <Card className="shadow-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
           <UserPlus className="w-5 h-5" />
           Doctor Onboarding
         </CardTitle>

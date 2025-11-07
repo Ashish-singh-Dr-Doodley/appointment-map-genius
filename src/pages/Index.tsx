@@ -43,15 +43,15 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-gradient-primary text-primary-foreground shadow-elegant">
-        <div className="container mx-auto px-6 py-6">
+      <header className="bg-white border-b border-border shadow-sm">
+        <div className="container mx-auto px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-              <Stethoscope className="w-6 h-6" />
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <Stethoscope className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold">VetRoute Manager</h1>
-              <p className="text-primary-foreground/90 text-sm">Veterinary Appointment & Route Planning</p>
+              <h1 className="text-xl font-bold text-foreground">VetRoute Manager</h1>
+              <p className="text-muted-foreground text-xs">Veterinary Appointment & Route Planning</p>
             </div>
           </div>
         </div>
