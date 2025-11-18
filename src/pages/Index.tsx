@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Appointment } from '@/types/appointment';
 import { Doctor } from '@/types/doctor';
 import { FileUpload } from '@/components/FileUpload';
@@ -10,70 +10,30 @@ import { DoctorScheduleList } from '@/components/DoctorScheduleList';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { parseExcelFile } from '@/utils/excelParser';
-import { fetchGoogleSheetData, refreshGoogleSheetData } from '@/utils/googleSheetsParser';
+import { fetchGoogleSheetData } from '@/utils/googleSheetsParser';
+import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { useDoctors } from '@/hooks/useDoctors';
+import { useAppointments } from '@/hooks/useAppointments';
 
 const Index = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [mapKey, setMapKey] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [doctorFilter, setDoctorFilter] = useState('all');
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Load doctors from localStorage
-    const savedDoctors = localStorage.getItem('doctors');
-    if (savedDoctors) {
-      try {
-        setDoctors(JSON.parse(savedDoctors));
-      } catch (error) {
-        console.error('Error loading saved doctors:', error);
-      }
-    }
-    
-    // Load appointments from localStorage if they exist
-    const savedAppointments = localStorage.getItem('appointments');
-    if (savedAppointments) {
-      try {
-        setAppointments(JSON.parse(savedAppointments));
-        toast({
-          title: "Data Restored",
-          description: "Previous appointments and assignments loaded from cache.",
-        });
-        return; // Don't load from Google Sheets if we have cached data
-      } catch (error) {
-        console.error('Error loading saved appointments:', error);
-      }
-    }
-    
-    // Auto-load sample data on mount if no cached data
-    loadSampleData();
-  }, []);
-
-  const loadSampleData = async () => {
-    try {
-      const parsedAppointments = await fetchGoogleSheetData();
-      setAppointments(parsedAppointments);
-      
-      const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
-      
-      toast({
-        title: "Data Loaded",
-        description: `${parsedAppointments.length} appointments loaded. ${withCoords} with map locations.`,
-      });
-    } catch (error) {
-      console.error('Error loading Google Sheets data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load data. Make sure the sheet is publicly accessible.",
-        variant: "destructive",
-      });
-    }
-  };
+  
+  // Use real-time hooks for doctors and appointments
+  const { doctors, loading: doctorsLoading, addDoctor, removeDoctor } = useDoctors();
+  const { 
+    appointments, 
+    loading: appointmentsLoading, 
+    updateAppointment, 
+    bulkUpdateAppointments,
+    addAppointments 
+  } = useAppointments();
 
   const handleDataParsed = async (file: File) => {
     setIsLoading(true);
@@ -84,7 +44,7 @@ const Index = () => {
       });
       
       const parsedAppointments = await parseExcelFile(file);
-      setAppointments(parsedAppointments);
+      await addAppointments(parsedAppointments);
       
       const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
       
@@ -104,123 +64,105 @@ const Index = () => {
     }
   };
 
-  const handleAssignDoctor = (appointmentId: string, doctorName: string) => {
-    setAppointments(prev => {
-      const appointment = prev.find(a => a.id === appointmentId);
-      if (!appointment) return prev;
+  const handleAssignDoctor = async (appointmentId: string, doctorName: string) => {
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) return;
 
-      const oldDoctorName = appointment.doctorName;
-      const newDoctorName = doctorName || undefined;
+    const oldDoctorName = appointment.doctorName;
+    const newDoctorName = doctorName || undefined;
 
-      let updated = [...prev];
+    const updates: { id: string; updates: Partial<Appointment> }[] = [];
 
-      // If unassigning (newDoctorName is undefined)
-      if (!newDoctorName) {
-        updated = updated.map(apt => {
-          if (apt.id === appointmentId) {
-            return { ...apt, doctorName: undefined, orderNumber: undefined };
-          }
-          // Renumber remaining appointments for the old doctor
+    // If unassigning
+    if (!newDoctorName) {
+      updates.push({
+        id: appointmentId,
+        updates: { doctorName: undefined, orderNumber: undefined }
+      });
+      
+      // Renumber remaining appointments for the old doctor
+      appointments.forEach(apt => {
+        if (apt.doctorName === oldDoctorName && apt.orderNumber && appointment.orderNumber && apt.orderNumber > appointment.orderNumber) {
+          updates.push({
+            id: apt.id,
+            updates: { orderNumber: apt.orderNumber - 1 }
+          });
+        }
+      });
+    }
+    // If assigning or reassigning
+    else {
+      const doctorAppointments = appointments.filter(a => a.doctorName === newDoctorName);
+      const nextOrderNumber = doctorAppointments.length > 0
+        ? Math.max(...doctorAppointments.map(a => a.orderNumber || 0)) + 1
+        : 1;
+
+      updates.push({
+        id: appointmentId,
+        updates: { doctorName: newDoctorName, orderNumber: nextOrderNumber }
+      });
+
+      // If reassigning from another doctor, renumber that doctor's list
+      if (oldDoctorName) {
+        appointments.forEach(apt => {
           if (apt.doctorName === oldDoctorName && apt.orderNumber && appointment.orderNumber && apt.orderNumber > appointment.orderNumber) {
-            return { ...apt, orderNumber: apt.orderNumber - 1 };
+            updates.push({
+              id: apt.id,
+              updates: { orderNumber: apt.orderNumber - 1 }
+            });
           }
-          return apt;
         });
       }
-      // If assigning or reassigning
-      else {
-        // Get the next order number for the new doctor
-        const doctorAppointments = prev.filter(a => a.doctorName === newDoctorName);
-        const nextOrderNumber = doctorAppointments.length > 0
-          ? Math.max(...doctorAppointments.map(a => a.orderNumber || 0)) + 1
-          : 1;
+    }
 
-        updated = updated.map(apt => {
-          if (apt.id === appointmentId) {
-            return { ...apt, doctorName: newDoctorName, orderNumber: nextOrderNumber };
-          }
-          // If reassigning from another doctor, renumber that doctor's list
-          if (oldDoctorName && apt.doctorName === oldDoctorName && apt.orderNumber && appointment.orderNumber && apt.orderNumber > appointment.orderNumber) {
-            return { ...apt, orderNumber: apt.orderNumber - 1 };
-          }
-          return apt;
-        });
-      }
-
-      localStorage.setItem('appointments', JSON.stringify(updated));
-      return updated;
-    });
+    await bulkUpdateAppointments(updates);
   };
 
-  const handleAddDoctor = (doctor: Doctor) => {
-    setDoctors(prev => {
-      const updated = [...prev, doctor];
-      localStorage.setItem('doctors', JSON.stringify(updated));
-      return updated;
-    });
+  const handleAddDoctor = async (doctor: Doctor) => {
+    await addDoctor(doctor);
   };
 
-  const handleRemoveDoctor = (doctorId: string) => {
-    setDoctors(prev => {
-      const updated = prev.filter(d => d.id !== doctorId);
-      localStorage.setItem('doctors', JSON.stringify(updated));
-      return updated;
-    });
+  const handleRemoveDoctor = async (doctorId: string) => {
+    const doctorToRemove = doctors.find(d => d.id === doctorId);
+    
+    await removeDoctor(doctorId);
     
     // Unassign all appointments from this doctor
-    const doctorToRemove = doctors.find(d => d.id === doctorId);
     if (doctorToRemove) {
-      setAppointments(prev => {
-        const updated = prev.map(apt =>
-          apt.doctorName === doctorToRemove.name
-            ? { ...apt, doctorName: undefined, orderNumber: undefined }
-            : apt
-        );
-        localStorage.setItem('appointments', JSON.stringify(updated));
-        return updated;
-      });
+      const updates = appointments
+        .filter(apt => apt.doctorName === doctorToRemove.name)
+        .map(apt => ({
+          id: apt.id,
+          updates: { doctorName: undefined, orderNumber: undefined } as Partial<Appointment>
+        }));
+      
+      if (updates.length > 0) {
+        await bulkUpdateAppointments(updates);
+      }
     }
   };
 
-  const handleReorderAppointments = (doctorName: string, appointmentId: string, newOrder: number) => {
-    setAppointments(prev => {
-      const doctorAppointments = prev
-        .filter(a => a.doctorName === doctorName)
-        .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
-      
-      const appointmentIndex = doctorAppointments.findIndex(a => a.id === appointmentId);
-      if (appointmentIndex === -1) return prev;
+  const handleReorderAppointments = async (doctorName: string, appointmentId: string, newOrder: number) => {
+    const doctorAppointments = appointments
+      .filter(a => a.doctorName === doctorName)
+      .sort((a, b) => (a.orderNumber || 0) - (b.orderNumber || 0));
+    
+    const appointmentIndex = doctorAppointments.findIndex(a => a.id === appointmentId);
+    if (appointmentIndex === -1) return;
 
-      // Remove from old position
-      const [movedAppointment] = doctorAppointments.splice(appointmentIndex, 1);
-      
-      // Insert at new position (newOrder is 1-based, convert to 0-based index)
-      doctorAppointments.splice(newOrder - 1, 0, movedAppointment);
+    // Remove from old position
+    const [movedAppointment] = doctorAppointments.splice(appointmentIndex, 1);
+    
+    // Insert at new position
+    doctorAppointments.splice(newOrder - 1, 0, movedAppointment);
 
-      // Renumber all appointments for this doctor
-      const renumbered = doctorAppointments.map((apt, index) => ({
-        ...apt,
-        orderNumber: index + 1,
-      }));
+    // Renumber all appointments for this doctor
+    const updates = doctorAppointments.map((apt, index) => ({
+      id: apt.id,
+      updates: { orderNumber: index + 1 } as Partial<Appointment>
+    }));
 
-      // Update the main appointments array
-      const updated = prev.map(apt => {
-        const renumberedApt = renumbered.find(r => r.id === apt.id);
-        return renumberedApt || apt;
-      });
-
-      localStorage.setItem('appointments', JSON.stringify(updated));
-      
-      // Update selected appointment if it's the one being reordered
-      if (selectedAppointment?.id === appointmentId) {
-        const updatedAppointment = updated.find(a => a.id === appointmentId);
-        if (updatedAppointment) {
-          setSelectedAppointment(updatedAppointment);
-        }
-      }
-      
-      return updated;
-    });
+    await bulkUpdateAppointments(updates);
   };
 
   const handleRefreshMap = () => {
@@ -255,11 +197,17 @@ const Index = () => {
   const handleResetAll = async () => {
     setIsLoading(true);
     try {
+      // Delete all current data
+      const { error: deleteApptsError } = await supabase.from('appointments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: deleteDocsError } = await supabase.from('doctors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      if (deleteApptsError) throw deleteApptsError;
+      if (deleteDocsError) throw deleteDocsError;
+      
+      // Load fresh data from Google Sheets
       const freshData = await fetchGoogleSheetData();
-      setAppointments(freshData);
-      setDoctors([]);
-      localStorage.removeItem('doctors');
-      localStorage.removeItem('appointments');
+      await addAppointments(freshData);
+      
       setSelectedAppointment(null);
       
       toast({
