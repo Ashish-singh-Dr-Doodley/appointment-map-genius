@@ -14,7 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          agent_name: string
+          base_charges: number
+          created_at: string | null
+          customer_name: string
+          detailed_address: string | null
+          doctor_name: string | null
+          id: string
+          issue: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          mobile_number: string
+          order_number: number | null
+          pet_type: string
+          query_date: string
+          source_of_order: string
+          sr_no: number
+          status: string
+          sub_category: string
+          updated_at: string | null
+          visit_date: string
+          visit_time: string
+        }
+        Insert: {
+          agent_name: string
+          base_charges: number
+          created_at?: string | null
+          customer_name: string
+          detailed_address?: string | null
+          doctor_name?: string | null
+          id?: string
+          issue: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          mobile_number: string
+          order_number?: number | null
+          pet_type: string
+          query_date: string
+          source_of_order: string
+          sr_no: number
+          status?: string
+          sub_category: string
+          updated_at?: string | null
+          visit_date: string
+          visit_time: string
+        }
+        Update: {
+          agent_name?: string
+          base_charges?: number
+          created_at?: string | null
+          customer_name?: string
+          detailed_address?: string | null
+          doctor_name?: string | null
+          id?: string
+          issue?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          mobile_number?: string
+          order_number?: number | null
+          pet_type?: string
+          query_date?: string
+          source_of_order?: string
+          sr_no?: number
+          status?: string
+          sub_category?: string
+          updated_at?: string | null
+          visit_date?: string
+          visit_time?: string
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          color: string
+          created_at: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          specialty: string | null
+          start_location: string | null
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          phone?: string | null
+          specialty?: string | null
+          start_location?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          phone?: string | null
+          specialty?: string | null
+          start_location?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
