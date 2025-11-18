@@ -5,6 +5,7 @@ import { Doctor } from '@/types/doctor';
 import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { MapPin } from 'lucide-react';
 
 interface AppointmentMapProps {
   appointments: Appointment[];
@@ -155,18 +156,18 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           }}
           icon={{
             path: google.maps.SymbolPath.CIRCLE,
-            fillColor: '#8b5cf6',
+            fillColor: doctor.color,
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 3,
-            scale: 12,
+            scale: 14,
           }}
           label={{
-            text: 'D',
+            text: '🏥',
             color: '#ffffff',
-            fontSize: '12px',
-            fontWeight: 'bold',
+            fontSize: '16px',
           }}
+          title={`${doctor.name} - Starting Location`}
         />
       ))}
 
@@ -282,14 +283,29 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           position={{ lat: selectedDoctor.latitude, lng: selectedDoctor.longitude }}
           onCloseClick={() => setSelectedDoctor(null)}
         >
-          <div className="p-2 max-w-xs">
-            <h3 className="font-semibold text-base mb-1">{selectedDoctor.name}</h3>
-            {selectedDoctor.specialty && (
-              <p className="text-sm text-gray-600 mb-1">{selectedDoctor.specialty}</p>
-            )}
-            {selectedDoctor.phone && (
-              <p className="text-sm">{selectedDoctor.phone}</p>
-            )}
+          <div className="p-2 min-w-[200px]">
+            <h3 className="font-semibold text-base mb-2 flex items-center gap-2">
+              <div 
+                className="w-4 h-4 rounded-full" 
+                style={{ backgroundColor: selectedDoctor.color }}
+              />
+              {selectedDoctor.name}
+            </h3>
+            <div className="space-y-1 text-sm">
+              <p className="flex items-center gap-2 text-gray-600">
+                <MapPin className="w-3 h-3" />
+                Starting Location
+              </p>
+              {selectedDoctor.specialty && (
+                <p className="text-gray-600">{selectedDoctor.specialty}</p>
+              )}
+              {selectedDoctor.phone && (
+                <p className="text-gray-600">{selectedDoctor.phone}</p>
+              )}
+              <p className="text-xs text-gray-500 mt-2">
+                Routes will start from this location
+              </p>
+            </div>
           </div>
         </InfoWindow>
       )}

@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { UserPlus, MapPin, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { fetchCoordinatesFromGoogleMapsUrl } from '@/utils/coordinateFetcher';
 
 interface DoctorOnboardingProps {
   doctors: Doctor[];
@@ -16,9 +17,11 @@ interface DoctorOnboardingProps {
 export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: DoctorOnboardingProps) => {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3b82f6');
+  const [startLocationUrl, setStartLocationUrl] = useState('');
+  const [isExtractingCoords, setIsExtractingCoords] = useState(false);
   const { toast } = useToast();
 
-  const handleAddDoctor = () => {
+  const handleAddDoctor = async () => {
     if (!name.trim()) {
       toast({
         title: "Missing Information",
@@ -28,20 +31,56 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
       return;
     }
 
+    setIsExtractingCoords(true);
+    
+    let coordinates = null;
+    if (startLocationUrl.trim()) {
+      try {
+        coordinates = await fetchCoordinatesFromGoogleMapsUrl(startLocationUrl.trim());
+        
+        if (!coordinates) {
+          toast({
+            title: "Location Error",
+            description: "Could not extract coordinates from the Google Maps link. Please verify the URL.",
+            variant: "destructive",
+          });
+          setIsExtractingCoords(false);
+          return;
+        }
+      } catch (error) {
+        console.error('Error extracting coordinates:', error);
+        toast({
+          title: "Location Error",
+          description: "Failed to process the Google Maps link",
+          variant: "destructive",
+        });
+        setIsExtractingCoords(false);
+        return;
+      }
+    }
+
     const newDoctor: Doctor = {
       id: `doctor-${Date.now()}`,
       name: name.trim(),
       color: color,
+      startLocation: startLocationUrl.trim() || undefined,
+      latitude: coordinates?.lat,
+      longitude: coordinates?.lng,
     };
 
-    onAddDoctor(newDoctor);
-    setName('');
-    setColor('#3b82f6');
-    
-    toast({
-      title: "Doctor Added",
-      description: `${name} has been successfully added`,
-    });
+    try {
+      await onAddDoctor(newDoctor);
+      setName('');
+      setColor('#3b82f6');
+      setStartLocationUrl('');
+      
+      toast({
+        title: "Doctor Added",
+        description: `${name} has been successfully added${coordinates ? ' with starting location' : ''}`,
+      });
+    } finally {
+      setIsExtractingCoords(false);
+    }
   };
 
   return (
@@ -85,9 +124,26 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
           </div>
         </div>
 
-        <Button onClick={handleAddDoctor} className="w-full">
+        <div className="space-y-2">
+          <Label htmlFor="startLocation">
+            Starting Location (Google Maps Link)
+            <span className="text-xs text-muted-foreground ml-2">Optional</span>
+          </Label>
+          <Input
+            id="startLocation"
+            placeholder="https://maps.app.goo.gl/..."
+            value={startLocationUrl}
+            onChange={(e) => setStartLocationUrl(e.target.value)}
+            disabled={isExtractingCoords}
+          />
+          <p className="text-xs text-muted-foreground">
+            Paste a Google Maps link to set the doctor's starting point
+          </p>
+        </div>
+
+        <Button onClick={handleAddDoctor} className="w-full" disabled={isExtractingCoords}>
           <UserPlus className="w-4 h-4 mr-2" />
-          Add Doctor
+          {isExtractingCoords ? 'Processing Location...' : 'Add Doctor'}
         </Button>
 
         {doctors.length > 0 && (
@@ -106,6 +162,12 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
                     />
                     <div>
                       <p className="font-medium">{doctor.name}</p>
+                      {doctor.startLocation && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                          <MapPin className="w-3 h-3" />
+                          <span>Starting location set</span>
+                        </div>
+                      )}
                       {doctor.specialty && (
                         <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
                       )}
