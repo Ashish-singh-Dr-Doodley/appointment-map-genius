@@ -326,22 +326,24 @@ const Index = () => {
 
                   <div className="grid grid-cols-12 gap-4">
                     {/* Map Controls Sidebar */}
-                    <div className="col-span-3 space-y-4">
+                    <div className="col-span-3 h-[600px] flex flex-col gap-4">
                       <CoordinateStatus appointments={appointments} />
                       
-                      <MapControls
-                        totalAppointments={filteredAppointments.length}
-                        assignedCount={assignedCount}
-                        unassignedCount={unassignedCount}
-                        doctorsCount={doctors.length}
-                        doctors={doctors}
-                        appointments={appointments}
-                        statusFilter={statusFilter}
-                        onStatusFilterChange={setStatusFilter}
-                        doctorFilter={doctorFilter}
-                        onDoctorFilterChange={setDoctorFilter}
-                        onCalculateETAs={handleCalculateETAs}
-                      />
+                      <div className="flex-1 min-h-0">
+                        <MapControls
+                          totalAppointments={filteredAppointments.length}
+                          assignedCount={assignedCount}
+                          unassignedCount={unassignedCount}
+                          doctorsCount={doctors.length}
+                          doctors={doctors}
+                          appointments={appointments}
+                          statusFilter={statusFilter}
+                          onStatusFilterChange={setStatusFilter}
+                          doctorFilter={doctorFilter}
+                          onDoctorFilterChange={setDoctorFilter}
+                          onCalculateETAs={handleCalculateETAs}
+                        />
+                      </div>
                     </div>
 
                     {/* Map Area */}
