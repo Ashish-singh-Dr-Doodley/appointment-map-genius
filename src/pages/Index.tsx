@@ -294,7 +294,7 @@ const Index = () => {
       <main className="container mx-auto px-6 py-6">
         {/* Tab Navigation */}
         <Tabs defaultValue="maps" className="w-full">
-              <TabsList className="grid w-full max-w-2xl grid-cols-4 mb-6">
+              <TabsList className="inline-flex w-full max-w-4xl mb-6 h-auto flex-wrap gap-2 p-2">
                 <TabsTrigger value="maps" className="flex items-center gap-2">
                   <MapPin className="w-4 h-4" />
                   Maps View
