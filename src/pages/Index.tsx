@@ -172,15 +172,12 @@ const Index = () => {
   const handleRefreshData = async () => {
     setIsLoading(true);
     try {
-      const updatedAppointments = await refreshGoogleSheetData(appointments);
-      const newCount = updatedAppointments.length - appointments.length;
-      setAppointments(updatedAppointments);
+      const refreshedData = await fetchGoogleSheetData();
+      await addAppointments(refreshedData);
       
       toast({
         title: "Data Refreshed",
-        description: newCount > 0 
-          ? `Added ${newCount} new appointment${newCount === 1 ? '' : 's'}` 
-          : "No new appointments found",
+        description: `Updated with ${refreshedData.length} appointments from Google Sheets`,
       });
     } catch (error) {
       console.error('Error refreshing data:', error);
