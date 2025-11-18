@@ -48,7 +48,7 @@ const Index = () => {
     if (!newDoctorName) {
       updates.push({
         id: appointmentId,
-        updates: { doctorName: undefined, orderNumber: undefined }
+        updates: { doctorName: null, orderNumber: null }
       });
       
       // Renumber remaining appointments for the old doctor
