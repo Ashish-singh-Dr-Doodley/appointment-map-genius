@@ -201,21 +201,17 @@ const Index = () => {
       if (deleteApptsError) throw deleteApptsError;
       if (deleteDocsError) throw deleteDocsError;
       
-      // Load fresh data from Google Sheets
-      const freshData = await fetchGoogleSheetData();
-      await addAppointments(freshData);
-      
       setSelectedAppointment(null);
       
       toast({
-        title: "Data Reset",
-        description: `Loaded fresh data: ${freshData.length} appointments`,
+        title: "Data Reset Complete",
+        description: "All appointments and doctor assignments have been cleared. You can now upload a new Excel file.",
       });
     } catch (error) {
       console.error('Error resetting data:', error);
       toast({
         title: "Error",
-        description: "Failed to reset data from Google Sheets",
+        description: "Failed to reset data",
         variant: "destructive",
       });
     } finally {
