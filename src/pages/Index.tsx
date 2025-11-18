@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Appointment } from '@/types/appointment';
 import { Doctor } from '@/types/doctor';
-import { FileUpload } from '@/components/FileUpload';
 import { AppointmentMap } from '@/components/AppointmentMap';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { MapControls } from '@/components/MapControls';
@@ -9,7 +8,7 @@ import { CoordinateStatus } from '@/components/CoordinateStatus';
 import { DoctorScheduleList } from '@/components/DoctorScheduleList';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { parseExcelFile } from '@/utils/excelParser';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { fetchGoogleSheetData } from '@/utils/googleSheetsParser';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,34 +34,6 @@ const Index = () => {
     addAppointments 
   } = useAppointments();
 
-  const handleDataParsed = async (file: File) => {
-    setIsLoading(true);
-    try {
-      toast({
-        title: "Parsing Excel",
-        description: "Reading file and extracting coordinates from Location URLs...",
-      });
-      
-      const parsedAppointments = await parseExcelFile(file);
-      await addAppointments(parsedAppointments);
-      
-      const withCoords = parsedAppointments.filter(a => a.latitude && a.longitude).length;
-      
-      toast({
-        title: "Upload Complete",
-        description: `${parsedAppointments.length} appointments loaded. ${withCoords} with map locations.`,
-      });
-    } catch (error) {
-      console.error('Error parsing Excel file:', error);
-      toast({
-        title: "Error",
-        description: "Failed to parse Excel file. Please check the format.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleAssignDoctor = async (appointmentId: string, doctorName: string) => {
     const appointment = appointments.find(a => a.id === appointmentId);
@@ -172,13 +143,24 @@ const Index = () => {
   const handleRefreshData = async () => {
     setIsLoading(true);
     try {
-      const refreshedData = await fetchGoogleSheetData();
-      await addAppointments(refreshedData);
+      const freshData = await fetchGoogleSheetData();
       
-      toast({
-        title: "Data Refreshed",
-        description: `Updated with ${refreshedData.length} appointments from Google Sheets`,
-      });
+      // Find only NEW appointments by comparing Sr No
+      const existingSrNos = new Set(appointments.map(a => a.srNo));
+      const newAppointments = freshData.filter(apt => !existingSrNos.has(apt.srNo));
+      
+      if (newAppointments.length > 0) {
+        await addAppointments(newAppointments);
+        toast({
+          title: "Data Refreshed",
+          description: `Added ${newAppointments.length} new appointment${newAppointments.length > 1 ? 's' : ''} from Google Sheets. ${freshData.length - newAppointments.length} existing appointment${freshData.length - newAppointments.length !== 1 ? 's' : ''} skipped.`,
+        });
+      } else {
+        toast({
+          title: "No New Data",
+          description: "All appointments from Google Sheets are already in the system.",
+        });
+      }
     } catch (error) {
       console.error('Error refreshing data:', error);
       toast({
@@ -194,24 +176,25 @@ const Index = () => {
   const handleResetAll = async () => {
     setIsLoading(true);
     try {
-      // Delete all current data
-      const { error: deleteApptsError } = await supabase.from('appointments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      const { error: deleteDocsError } = await supabase.from('doctors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // Only delete appointments, keep doctors
+      const { error: deleteApptsError } = await supabase
+        .from('appointments')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
       
       if (deleteApptsError) throw deleteApptsError;
-      if (deleteDocsError) throw deleteDocsError;
       
       setSelectedAppointment(null);
       
       toast({
-        title: "Data Reset Complete",
-        description: "All appointments and doctor assignments have been cleared. You can now upload a new Excel file.",
+        title: "Appointments Cleared",
+        description: "All appointments have been cleared. Doctors are preserved. Click 'Refresh Data' to load appointments from Google Sheets.",
       });
     } catch (error) {
-      console.error('Error resetting data:', error);
+      console.error('Error clearing appointments:', error);
       toast({
         title: "Error",
-        description: "Failed to reset data",
+        description: "Failed to clear appointments",
         variant: "destructive",
       });
     } finally {
@@ -260,13 +243,13 @@ const Index = () => {
                 Export CSV
               </Button>
               <Button 
-                variant="outline" 
+                variant="default" 
                 size="sm" 
                 onClick={handleRefreshData}
                 disabled={isLoading}
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh Data
+                Refresh from Google Sheets
               </Button>
               <Button 
                 variant="destructive" 
@@ -275,7 +258,7 @@ const Index = () => {
                 disabled={isLoading}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
-                Reset All Data
+                Clear Appointments
               </Button>
             </div>
           </div>
@@ -398,7 +381,33 @@ const Index = () => {
               {/* Doctors Tab */}
               <TabsContent value="doctors">
                 <div className="max-w-2xl mx-auto space-y-6">
-                  <FileUpload onDataParsed={handleDataParsed} />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <RefreshCw className="w-5 h-5 text-primary" />
+                        Data Source: Google Sheets
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        This application syncs with your Google Sheet. Update your sheet and click <strong>"Refresh from Google Sheets"</strong> in the header to load new appointments.
+                      </p>
+                      <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="mt-0.5">
+                          <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm mb-1">Smart Sync</p>
+                          <p className="text-xs text-muted-foreground">
+                            Only new appointments with unique Sr No will be added. Existing appointments and all doctors will be preserved.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
                   <DoctorOnboarding
                     doctors={doctors}
                     onAddDoctor={handleAddDoctor}

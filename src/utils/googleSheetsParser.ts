@@ -1,7 +1,7 @@
 import { Appointment } from '@/types/appointment';
 import { fetchCoordinatesFromGoogleMapsUrl, geocodeAddress } from './coordinateFetcher';
 
-const SHEET_ID = '1qBQy51cOe7D06gWFskQxar3oB8ZtGzeyBnkQUIcZ8iw';
+const SHEET_ID = '1bDXAgS6AXf3c3hOW1HGOaI8eWq9PP7hxtfkgEo7rrYs';
 const GID = '0';
 const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
 
