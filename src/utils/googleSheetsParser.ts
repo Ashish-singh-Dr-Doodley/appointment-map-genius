@@ -145,8 +145,8 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
             }
           }
           
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Add small delay to avoid rate limiting (reduced from 500ms to 200ms)
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
       

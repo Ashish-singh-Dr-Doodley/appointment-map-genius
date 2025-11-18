@@ -62,46 +62,30 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
       return directCoords;
     }
     
-    // For shortened URLs (goo.gl or maps.app.goo.gl), try expansion with better retry
+    // For shortened URLs (goo.gl or maps.app.goo.gl), try ONE fast proxy only
     if (url.includes('goo.gl') || url.includes('maps.app.goo.gl')) {
-      console.log('📍 Detected shortened URL, attempting expansion with retries...');
+      console.log('📍 Shortened URL detected, using fast proxy...');
       
-      // Try multiple CORS proxies with retry logic
-      const proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(url)}`,
-        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-      ];
-      
-      for (const proxyUrl of proxies) {
-        const result = await retryFetch(async () => {
-          const response = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(8000) // Increased to 8 seconds
-          });
-          
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          
+      // Use ONLY the fastest proxy (api.codetabs.com works best)
+      try {
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl, {
+          signal: AbortSignal.timeout(6000) // 6 seconds max
+        });
+        
+        if (response.ok) {
           const htmlContent = await response.text();
-          console.log('✅ Fetched HTML content from proxy, extracting coordinates...');
+          console.log('✅ Fetched HTML from proxy');
           
-          // Try to extract coordinates from the HTML content
+          // Extract coordinates from the HTML (including from CAPTCHA page title/continue field)
           const extractedCoords = extractCoordinatesFromHtml(htmlContent);
           if (extractedCoords) {
-            console.log('✅ Coordinates extracted from HTML:', extractedCoords);
+            console.log('✅ Coordinates extracted from proxy HTML:', extractedCoords);
             return extractedCoords;
           }
-          
-          // Also try to extract from any meta tags or links in the HTML
-          const metaCoords = extractCoordinatesFromExpandedUrl(htmlContent);
-          if (metaCoords) {
-            console.log('✅ Coordinates extracted from meta:', metaCoords);
-            return metaCoords;
-          }
-          
-          throw new Error('No coordinates found in HTML');
-        }, 2, 1500); // 2 retries with 1.5s delay
-        
-        if (result) return result;
+        }
+      } catch (proxyError) {
+        console.log('⚠️ Proxy failed, will try geocoding fallback');
       }
     }
     
@@ -113,9 +97,33 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
   }
 };
 
-// Extract coordinates from HTML content
+// Extract coordinates from HTML content (including CAPTCHA pages)
 const extractCoordinatesFromHtml = (html: string): { lat: number; lng: number } | null => {
-  // Try to find coordinates in various formats within the HTML
+  // IMPORTANT: Google CAPTCHA pages contain the target URL in the <title> tag and in hidden form fields
+  // Example: <title>https://www.google.com/maps/place/Anchor+172/@13.0230017,77.5966639,907m/...</title>
+  
+  // First, try to extract from title tag (most reliable for CAPTCHA pages)
+  const titleMatch = html.match(/<title>(.*?)<\/title>/);
+  if (titleMatch && titleMatch[1]) {
+    const coords = extractCoordinatesFromExpandedUrl(titleMatch[1]);
+    if (coords) {
+      console.log('✅ Extracted coordinates from HTML title tag');
+      return coords;
+    }
+  }
+  
+  // Try to extract from hidden continue field in CAPTCHA form
+  const continueMatch = html.match(/name="continue"\s+value="([^"]+)"/);
+  if (continueMatch && continueMatch[1]) {
+    const decodedUrl = continueMatch[1].replace(/&amp;/g, '&');
+    const coords = extractCoordinatesFromExpandedUrl(decodedUrl);
+    if (coords) {
+      console.log('✅ Extracted coordinates from CAPTCHA continue field');
+      return coords;
+    }
+  }
+  
+  // Try to find coordinates in various other formats within the HTML
   const patterns = [
     // Pattern for data attributes or JSON
     /"center":\s*{\s*"lat":\s*(-?\d+\.?\d*),\s*"lng":\s*(-?\d+\.?\d*)/,
@@ -134,6 +142,7 @@ const extractCoordinatesFromHtml = (html: string): { lat: number; lng: number } 
       const lng = parseFloat(match[2]);
       
       if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        console.log('✅ Extracted coordinates from HTML pattern match');
         return { lat, lng };
       }
     }
