@@ -62,21 +62,24 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
       return directCoords;
     }
     
-    // For shortened URLs, try alternative CORS proxies with shorter timeout
-    if (url.includes('goo.gl')) {
-      console.log('📍 Detected shortened URL, attempting expansion...');
+    // For shortened URLs (goo.gl or maps.app.goo.gl), try expansion with better retry
+    if (url.includes('goo.gl') || url.includes('maps.app.goo.gl')) {
+      console.log('📍 Detected shortened URL, attempting expansion with retries...');
       
-      // Try multiple CORS proxies in sequence (with shorter timeout)
+      // Try multiple CORS proxies with retry logic
       const proxies = [
         `https://corsproxy.io/?${encodeURIComponent(url)}`,
         `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
       ];
       
       for (const proxyUrl of proxies) {
-        try {
+        const result = await retryFetch(async () => {
           const response = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(5000) // Reduced to 5 seconds
+            signal: AbortSignal.timeout(8000) // Increased to 8 seconds
           });
+          
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
           
           const htmlContent = await response.text();
           console.log('✅ Fetched HTML content from proxy, extracting coordinates...');
@@ -94,10 +97,11 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
             console.log('✅ Coordinates extracted from meta:', metaCoords);
             return metaCoords;
           }
-        } catch (proxyError) {
-          console.log(`⚠️ Proxy ${proxyUrl} failed, trying next...`);
-          continue;
-        }
+          
+          throw new Error('No coordinates found in HTML');
+        }, 2, 1500); // 2 retries with 1.5s delay
+        
+        if (result) return result;
       }
     }
     
