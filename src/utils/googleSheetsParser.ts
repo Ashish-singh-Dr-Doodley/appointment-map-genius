@@ -123,41 +123,29 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
         const locationUrl = row['Location'].trim();
         
         if (locationUrl) {
-          // For shortened URLs, skip CORS proxy and go straight to geocoding
-          if (locationUrl.includes('goo.gl')) {
-            console.log(`🔄 Row ${index + 1} (${row['Customer Name']}): Shortened URL detected, using geocoding...`);
-            const addressToGeocode = row['Detailed address'] || row['Detailed Address'];
-            if (addressToGeocode && addressToGeocode.trim()) {
-              coords = await geocodeAddress(addressToGeocode);
-              if (coords) {
-                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded - ${coords.lat}, ${coords.lng}`);
-              }
-            }
-          } else {
-            // Try to extract from full URL
-            coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
-            if (coords) {
-              console.log(`✅ Row ${index + 1} (${row['Customer Name']}): URL extraction - ${coords.lat}, ${coords.lng}`);
-            }
+          // Always try URL extraction first (handles both full and shortened URLs)
+          coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
+          if (coords) {
+            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): URL extraction - ${coords.lat}, ${coords.lng}`);
           }
           
-          // If still no coords, try geocoding as final fallback
+          // If URL extraction failed, try geocoding the detailed address as fallback
           if (!coords) {
-            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Trying geocoding fallback...`);
+            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): URL extraction failed, trying geocoding...`);
             const addressToGeocode = row['Detailed address'] || row['Detailed Address'];
             if (addressToGeocode && addressToGeocode.trim()) {
               coords = await geocodeAddress(addressToGeocode);
               if (coords) {
-                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded fallback - ${coords.lat}, ${coords.lng}`);
+                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded from address - ${coords.lat}, ${coords.lng}`);
               } else {
-                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed - no detailed address`);
+                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Geocoding failed for address: ${addressToGeocode}`);
               }
             } else {
-              console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): All methods failed - no detailed address available`);
+              console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): No detailed address available for geocoding`);
             }
           }
           
-          // Add delay to avoid rate limiting on Google Geocoding API
+          // Add delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
