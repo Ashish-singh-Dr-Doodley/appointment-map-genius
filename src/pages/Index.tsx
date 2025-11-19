@@ -15,6 +15,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useDoctors } from '@/hooks/useDoctors';
 import { useAppointments } from '@/hooks/useAppointments';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const Index = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -22,6 +32,7 @@ const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [doctorFilter, setDoctorFilter] = useState('all');
+  const [showClearDialog, setShowClearDialog] = useState(false);
   const { toast } = useToast();
   
   // Use real-time hooks for doctors and appointments
@@ -258,7 +269,7 @@ const Index = () => {
               <Button 
                 variant="destructive" 
                 size="sm" 
-                onClick={handleResetAll}
+                onClick={() => setShowClearDialog(true)}
                 disabled={isLoading}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -421,8 +432,35 @@ const Index = () => {
                   />
                 </div>
               </TabsContent>
-            </Tabs>
+              </Tabs>
       </main>
+
+      {/* Clear Appointments Confirmation Dialog */}
+      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear All Appointments?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear all appointments? This action cannot be undone.
+              <span className="block mt-2 font-medium text-destructive">
+                All appointment data will be permanently deleted.
+              </span>
+              <span className="block mt-1 text-sm">
+                Doctors will be preserved. You can reload appointments by clicking "Refresh from Google Sheets".
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleResetAll}
+            >
+              Clear All Appointments
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
