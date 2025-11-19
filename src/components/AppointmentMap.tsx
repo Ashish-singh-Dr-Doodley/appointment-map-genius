@@ -6,6 +6,16 @@ import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { MapPin } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface AppointmentMapProps {
   appointments: Appointment[];
@@ -32,6 +42,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
+  const [appointmentToComplete, setAppointmentToComplete] = useState<Appointment | null>(null);
 
   const { isLoaded, loadError } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -283,10 +295,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
                   variant="default"
                   size="sm"
                   onClick={() => {
-                    if (onUpdateAppointment) {
-                      onUpdateAppointment(selectedMarker.id, { status: 'Completed' });
-                      setSelectedMarker(null);
-                    }
+                    setAppointmentToComplete(selectedMarker);
+                    setShowCompletionDialog(true);
                   }}
                 >
                   Mark as Completed
@@ -329,6 +339,40 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           </div>
         </InfoWindow>
       )}
+
+      {/* Completion Confirmation Dialog */}
+      <AlertDialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark as Completed?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this appointment as completed? 
+              {appointmentToComplete && (
+                <span className="block mt-2 font-medium">
+                  Customer: {appointmentToComplete.customerName}
+                </span>
+              )}
+              The appointment will be removed from the map.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setAppointmentToComplete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (onUpdateAppointment && appointmentToComplete) {
+                  onUpdateAppointment(appointmentToComplete.id, { status: 'Completed' });
+                  setSelectedMarker(null);
+                  setAppointmentToComplete(null);
+                }
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </GoogleMap>
   );
 };
