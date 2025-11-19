@@ -65,120 +65,116 @@ export const fetchGoogleSheetData = async (onProgress?: (current: number, total:
     console.log(`📊 Parsed ${jsonData.length} rows from sheet`);
     
     const appointments: Appointment[] = [];
-    let processedCount = 0;
     const totalRows = jsonData.length;
     
     console.log(`📊 Processing ${totalRows} appointments...`);
     
-    for (let index = 0; index < totalRows; index++) {
-      const row = jsonData[index];
-      let coords = null;
+    // Process appointments in parallel batches for better performance
+    const BATCH_SIZE = 15;
+    
+    for (let batchStart = 0; batchStart < totalRows; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, totalRows);
+      const batch = jsonData.slice(batchStart, batchEnd);
       
-      // Progress indicator
-      processedCount++;
-      if (onProgress) {
-        onProgress(processedCount, totalRows);
-      }
-      if (processedCount % 5 === 0 || processedCount === totalRows) {
-        console.log(`⏳ Progress: ${processedCount}/${totalRows} appointments processed`);
-      }
-      
-      // Method 1: Check for Lat/Long columns (fastest)
-      // Handle various column name variations including typos
-      let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
-      let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
-      
-      // Special case: Google Sheet has "Longitude" and "Latitutde" (with typo) but they're SWAPPED!
-      // The "Longitude" column actually contains latitude values
-      const longitudeCol = row['Longitude'];
-      const latitudeCol = row['Latitutde'] || row['latitutde'];
-      
-      if (longitudeCol && latitudeCol) {
-        // These columns are swapped in the sheet, so we swap them back
-        latValue = longitudeCol; // "Longitude" column has lat values
-        lngValue = latitudeCol;  // "Latitutde" column has lng values
-        console.log(`🔄 Row ${index + 1}: Using swapped Longitude/Latitutde columns`);
-      }
-      
-      console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
-      
-      // Validate and parse the coordinates
-      if (latValue && lngValue) {
-        const lat = parseFloat(latValue);
-        const lng = parseFloat(lngValue);
+      const batchPromises = batch.map(async (row, batchIndex) => {
+        const index = batchStart + batchIndex;
+        let coords = null;
         
-        // Validate coordinates are in correct range
-        if (!isNaN(lat) && !isNaN(lng) && 
-            lat >= -90 && lat <= 90 && 
-            lng >= -180 && lng <= 180) {
-          coords = { lat, lng };
-          console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using coordinates - Lat: ${lat}, Lng: ${lng}`);
-        } else {
-          console.warn(`⚠️ Row ${index + 1}: Invalid coordinates - Lat: ${lat}, Lng: ${lng}`);
+        // Method 1: Check for Lat/Long columns (fastest)
+        let latValue = row['Lat'] || row['lat'] || row['Latitude'] || row['latitude'];
+        let lngValue = row['Long'] || row['long'] || row['Longitude'] || row['longitude'];
+        
+        // Special case: Google Sheet has "Longitude" and "Latitutde" (with typo) but they're SWAPPED!
+        const longitudeCol = row['Longitude'];
+        const latitudeCol = row['Latitutde'] || row['latitutde'];
+        
+        if (longitudeCol && latitudeCol) {
+          latValue = longitudeCol;
+          lngValue = latitudeCol;
+          console.log(`🔄 Row ${index + 1}: Using swapped Longitude/Latitutde columns`);
         }
-      }
-      
-      // Method 2: Fetch from Google Maps URL or geocode address
-      if (!coords && row['Location']) {
-        const locationUrl = row['Location'].trim();
         
-        if (locationUrl) {
-          // Always try URL extraction first (handles both full and shortened URLs)
-          coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
-          if (coords) {
-            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): URL extraction - ${coords.lat}, ${coords.lng}`);
-          }
+        console.log(`Row ${index + 1} - Customer: ${row['Customer Name']}, Lat: ${latValue}, Long: ${lngValue}`);
+        
+        // Validate and parse the coordinates
+        if (latValue && lngValue) {
+          const lat = parseFloat(latValue);
+          const lng = parseFloat(lngValue);
           
-          // If URL extraction failed, try geocoding the detailed address as fallback
-          if (!coords) {
-            console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): URL extraction failed, trying geocoding...`);
-            const addressToGeocode = row['Detailed address'] || row['Detailed Address'];
-            if (addressToGeocode && addressToGeocode.trim()) {
-              coords = await geocodeAddress(addressToGeocode);
-              if (coords) {
-                console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Geocoded from address - ${coords.lat}, ${coords.lng}`);
-              } else {
-                console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): Geocoding failed for address: ${addressToGeocode}`);
-              }
+          if (!isNaN(lat) && !isNaN(lng) && 
+              lat >= -90 && lat <= 90 && 
+              lng >= -180 && lng <= 180) {
+            coords = { lat, lng };
+            console.log(`✅ Row ${index + 1} (${row['Customer Name']}): Using coordinates - Lat: ${lat}, Lng: ${lng}`);
+          } else {
+            console.warn(`⚠️ Row ${index + 1}: Invalid coordinates - Lat: ${lat}, Lng: ${lng}`);
+          }
+        }
+        
+        // Method 2: Fetch from Google Maps URL (only if no valid coords)
+        if (!coords && row['Location']) {
+          const locationUrl = row['Location'].trim();
+          
+          if (locationUrl) {
+            coords = await fetchCoordinatesFromGoogleMapsUrl(locationUrl);
+            if (coords) {
+              console.log(`✅ Row ${index + 1} (${row['Customer Name']}): URL extraction - ${coords.lat}, ${coords.lng}`);
             } else {
-              console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): No detailed address available for geocoding`);
+              console.warn(`⚠️ Row ${index + 1} (${row['Customer Name']}): URL extraction failed`);
             }
           }
-          
-          // Add small delay to avoid rate limiting (reduced from 500ms to 200ms)
-          await new Promise(resolve => setTimeout(resolve, 200));
         }
-      }
-      
-      const appointment: Appointment = {
-        id: `${row['Sr No'] || index}`,
-        srNo: parseInt(row['Sr No']) || index,
-        petType: row['Pet Type'] || '',
-        subCategory: row['Sub- category'] || '',
-        queryDate: row['Query Date'] || '',
-        mobileNumber: row['Mobile Number'] || '',
-        customerName: row['Customer Name'] || '',
-        doctorName: row['Doctor Name'] || undefined,
-        sourceOfOrder: row['Source of order'] || '',
-        agentName: row['Agent Name'] || '',
-        location: row['Location'] || '',
-        detailedAddress: row['Detailed address'] || undefined,
-        issue: row['Issue'] || '',
-        visitDate: row['Visit Date'] || '',
-        visitTime: row['Visit Time'] || '',
-        status: (row['Status'] || 'Pending') as Appointment['status'],
-        baseCharges: parseFloat(row['Base Charges']) || 0,
-        latitude: coords?.lat,
-        longitude: coords?.lng,
-      };
-      
-      console.log(`Row ${index + 1} final appointment:`, {
-        customerName: appointment.customerName,
-        latitude: appointment.latitude,
-        longitude: appointment.longitude
+        
+        const appointment: Appointment = {
+          id: `${row['Sr No'] || index}`,
+          srNo: parseInt(row['Sr No']) || index,
+          petType: row['Pet Type'] || '',
+          subCategory: row['Sub- category'] || '',
+          queryDate: row['Query Date'] || '',
+          mobileNumber: row['Mobile Number'] || '',
+          customerName: row['Customer Name'] || '',
+          doctorName: row['Doctor Name'] || undefined,
+          sourceOfOrder: row['Source of order'] || '',
+          agentName: row['Agent Name'] || '',
+          location: row['Location'] || '',
+          detailedAddress: row['Detailed address'] || undefined,
+          issue: row['Issue'] || '',
+          visitDate: row['Visit Date'] || '',
+          visitTime: row['Visit Time'] || '',
+          status: (row['Status'] || 'Pending') as Appointment['status'],
+          baseCharges: parseFloat(row['Base Charges']) || 0,
+          latitude: coords?.lat,
+          longitude: coords?.lng,
+        };
+        
+        console.log(`Row ${index + 1} final appointment:`, {
+          customerName: appointment.customerName,
+          latitude: appointment.latitude,
+          longitude: appointment.longitude
+        });
+        
+        return appointment;
       });
       
-      appointments.push(appointment);
+      // Wait for batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      batchResults.forEach((result, idx) => {
+        if (result.status === 'fulfilled') {
+          appointments.push(result.value);
+        }
+        const processedCount = batchStart + idx + 1;
+        if (onProgress) {
+          onProgress(processedCount, totalRows);
+        }
+        if (processedCount % 10 === 0 || processedCount === totalRows) {
+          console.log(`⏳ Progress: ${processedCount}/${totalRows} appointments processed`);
+        }
+      });
+      
+      // Small delay between batches
+      if (batchEnd < totalRows) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
     }
     
     const withCoords = appointments.filter(a => a.latitude && a.longitude).length;

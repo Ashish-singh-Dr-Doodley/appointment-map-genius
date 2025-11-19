@@ -1,10 +1,10 @@
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
 
-// Retry logic wrapper
+// Retry logic wrapper - optimized with faster delays
 const retryFetch = async <T>(
   fn: () => Promise<T>,
-  retries: number = 3,
-  delay: number = 2000
+  retries: number = 2,
+  delay: number = 500
 ): Promise<T | null> => {
   for (let i = 0; i < retries; i++) {
     try {
@@ -77,7 +77,7 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
         try {
           console.log('🔄 Trying proxy:', proxyUrl.split('?')[0]);
           const response = await fetch(proxyUrl, {
-            signal: AbortSignal.timeout(8000) // 8 seconds per proxy
+            signal: AbortSignal.timeout(3000) // 3 seconds per proxy
           });
           
           if (response.ok) {
@@ -96,7 +96,7 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
         }
         
         // Small delay between proxy attempts
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     
@@ -198,24 +198,30 @@ const extractCoordinatesFromExpandedUrl = (url: string): { lat: number; lng: num
   return null;
 };
 
-// Batch fetch coordinates with rate limiting
+// Batch fetch coordinates with parallel processing
 export const batchFetchCoordinates = async (
   urls: string[], 
   onProgress?: (current: number, total: number) => void
 ): Promise<Array<{ lat: number; lng: number } | null>> => {
+  const BATCH_SIZE = 10; // Process 10 URLs at a time
   const results: Array<{ lat: number; lng: number } | null> = [];
   
-  for (let i = 0; i < urls.length; i++) {
-    const coords = await fetchCoordinatesFromGoogleMapsUrl(urls[i]);
-    results.push(coords);
+  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+    const batch = urls.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(url => fetchCoordinatesFromGoogleMapsUrl(url))
+    );
     
-    if (onProgress) {
-      onProgress(i + 1, urls.length);
-    }
+    batchResults.forEach((result, idx) => {
+      results.push(result.status === 'fulfilled' ? result.value : null);
+      if (onProgress) {
+        onProgress(i + idx + 1, urls.length);
+      }
+    });
     
-    // Add delay to avoid rate limiting (500ms between requests)
-    if (i < urls.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Small delay between batches only
+    if (i + BATCH_SIZE < urls.length) {
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
   }
   
