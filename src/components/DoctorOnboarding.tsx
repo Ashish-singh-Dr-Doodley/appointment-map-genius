@@ -12,13 +12,16 @@ interface DoctorOnboardingProps {
   doctors: Doctor[];
   onAddDoctor: (doctor: Doctor) => void;
   onRemoveDoctor: (doctorId: string) => void;
+  onUpdateDoctor: (doctorId: string, updates: Partial<Doctor>) => void;
 }
 
-export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: DoctorOnboardingProps) => {
+export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor, onUpdateDoctor }: DoctorOnboardingProps) => {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#3b82f6');
   const [startLocationUrl, setStartLocationUrl] = useState('');
   const [isExtractingCoords, setIsExtractingCoords] = useState(false);
+  const [editingDoctor, setEditingDoctor] = useState<string | null>(null);
+  const [editLocationUrl, setEditLocationUrl] = useState('');
   const { toast } = useToast();
 
   const handleAddDoctor = async () => {
@@ -160,26 +163,112 @@ export const DoctorOnboarding = ({ doctors, onAddDoctor, onRemoveDoctor }: Docto
                       className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
                       style={{ backgroundColor: doctor.color }}
                     />
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium">{doctor.name}</p>
-                      {doctor.startLocation && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                          <MapPin className="w-3 h-3" />
-                          <span>Starting location set</span>
+                      {editingDoctor === doctor.id ? (
+                        <div className="flex items-center gap-2 mt-2">
+                          <Input
+                            type="url"
+                            placeholder="New Google Maps Link"
+                            value={editLocationUrl}
+                            onChange={(e) => setEditLocationUrl(e.target.value)}
+                            disabled={isExtractingCoords}
+                            className="flex-1 h-8 text-sm"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (!editLocationUrl) {
+                                toast({
+                                  title: "Error",
+                                  description: "Please enter a Google Maps link",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              setIsExtractingCoords(true);
+                              try {
+                                const coords = await fetchCoordinatesFromGoogleMapsUrl(editLocationUrl);
+                                if (coords) {
+                                  await onUpdateDoctor(doctor.id, {
+                                    startLocation: editLocationUrl,
+                                    latitude: coords.lat,
+                                    longitude: coords.lng
+                                  });
+                                  toast({
+                                    title: "Location Updated",
+                                    description: "Starting location has been updated successfully"
+                                  });
+                                  setEditingDoctor(null);
+                                  setEditLocationUrl('');
+                                } else {
+                                  toast({
+                                    title: "Error",
+                                    description: "Could not extract coordinates from the link",
+                                    variant: "destructive"
+                                  });
+                                }
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to extract coordinates",
+                                  variant: "destructive"
+                                });
+                              } finally {
+                                setIsExtractingCoords(false);
+                              }
+                            }}
+                            disabled={isExtractingCoords}
+                          >
+                            {isExtractingCoords ? 'Processing...' : 'Save'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingDoctor(null);
+                              setEditLocationUrl('');
+                            }}
+                          >
+                            Cancel
+                          </Button>
                         </div>
-                      )}
-                      {doctor.specialty && (
-                        <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+                      ) : (
+                        <>
+                          {doctor.startLocation && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              <span>Starting location set</span>
+                            </div>
+                          )}
+                          {doctor.specialty && (
+                            <p className="text-sm text-muted-foreground">{doctor.specialty}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onRemoveDoctor(doctor.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {editingDoctor !== doctor.id && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setEditingDoctor(doctor.id);
+                          setEditLocationUrl(doctor.startLocation || '');
+                        }}
+                      >
+                        Edit Location
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onRemoveDoctor(doctor.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

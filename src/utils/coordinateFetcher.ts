@@ -62,30 +62,41 @@ export const fetchCoordinatesFromGoogleMapsUrl = async (url: string): Promise<{ 
       return directCoords;
     }
     
-    // For shortened URLs (goo.gl or maps.app.goo.gl), try ONE fast proxy only
+    // For shortened URLs (goo.gl or maps.app.goo.gl), try multiple proxies with retries
     if (url.includes('goo.gl') || url.includes('maps.app.goo.gl')) {
-      console.log('📍 Shortened URL detected, using fast proxy...');
+      console.log('📍 Shortened URL detected, trying to expand...');
       
-      // Use ONLY the fastest proxy (api.codetabs.com works best)
-      try {
-        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
-        const response = await fetch(proxyUrl, {
-          signal: AbortSignal.timeout(6000) // 6 seconds max
-        });
-        
-        if (response.ok) {
-          const htmlContent = await response.text();
-          console.log('✅ Fetched HTML from proxy');
+      // Try multiple proxies in sequence
+      const proxies = [
+        `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://corsproxy.io/?${encodeURIComponent(url)}`
+      ];
+      
+      for (const proxyUrl of proxies) {
+        try {
+          console.log('🔄 Trying proxy:', proxyUrl.split('?')[0]);
+          const response = await fetch(proxyUrl, {
+            signal: AbortSignal.timeout(8000) // 8 seconds per proxy
+          });
           
-          // Extract coordinates from the HTML (including from CAPTCHA page title/continue field)
-          const extractedCoords = extractCoordinatesFromHtml(htmlContent);
-          if (extractedCoords) {
-            console.log('✅ Coordinates extracted from proxy HTML:', extractedCoords);
-            return extractedCoords;
+          if (response.ok) {
+            const htmlContent = await response.text();
+            console.log('✅ Fetched HTML from proxy');
+            
+            // Extract coordinates from the HTML
+            const extractedCoords = extractCoordinatesFromHtml(htmlContent);
+            if (extractedCoords) {
+              console.log('✅ Coordinates extracted from proxy HTML:', extractedCoords);
+              return extractedCoords;
+            }
           }
+        } catch (proxyError) {
+          console.log('⚠️ Proxy failed, trying next one...');
         }
-      } catch (proxyError) {
-        console.log('⚠️ Proxy failed, will try geocoding fallback');
+        
+        // Small delay between proxy attempts
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
     

@@ -25,7 +25,7 @@ const Index = () => {
   const { toast } = useToast();
   
   // Use real-time hooks for doctors and appointments
-  const { doctors, loading: doctorsLoading, addDoctor, removeDoctor } = useDoctors();
+  const { doctors, loading: doctorsLoading, addDoctor, removeDoctor, updateDoctor } = useDoctors();
   const { 
     appointments, 
     loading: appointmentsLoading, 
@@ -111,6 +111,10 @@ const Index = () => {
         await bulkUpdateAppointments(updates);
       }
     }
+  };
+
+  const handleUpdateDoctor = async (doctorId: string, updates: Partial<Doctor>) => {
+    await updateDoctor(doctorId, updates);
   };
 
   const handleReorderAppointments = async (doctorName: string, appointmentId: string, newOrder: number) => {
@@ -412,6 +416,7 @@ const Index = () => {
                     doctors={doctors}
                     onAddDoctor={handleAddDoctor}
                     onRemoveDoctor={handleRemoveDoctor}
+                    onUpdateDoctor={handleUpdateDoctor}
                   />
                 </div>
               </TabsContent>

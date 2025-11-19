@@ -92,5 +92,27 @@ export const useDoctors = () => {
     }
   };
 
-  return { doctors, loading, addDoctor, removeDoctor };
+  const updateDoctor = async (doctorId: string, updates: Partial<Doctor>) => {
+    try {
+      const { error } = await supabase
+        .from('doctors')
+        .update({
+          name: updates.name,
+          color: updates.color,
+          specialty: updates.specialty,
+          phone: updates.phone,
+          start_location: updates.startLocation,
+          latitude: updates.latitude,
+          longitude: updates.longitude,
+        })
+        .eq('id', doctorId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating doctor:', error);
+      throw error;
+    }
+  };
+
+  return { doctors, loading, addDoctor, removeDoctor, updateDoctor };
 };
