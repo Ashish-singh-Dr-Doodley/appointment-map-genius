@@ -13,6 +13,7 @@ interface AppointmentMapProps {
   onAppointmentSelect: (appointment: Appointment) => void;
   onDoctorSelect?: (doctor: Doctor) => void;
   onAssignDoctor?: (appointmentId: string, doctorName: string) => void;
+  onUpdateAppointment?: (appointmentId: string, updates: Partial<Appointment>) => void;
 }
 
 const mapContainerStyle = {
@@ -27,7 +28,7 @@ const defaultCenter = {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAMqINyXLThCEcAQZB9xXqCNGZJOLXXIto';
 
-export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor }: AppointmentMapProps) => {
+export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onDoctorSelect, onAssignDoctor, onUpdateAppointment }: AppointmentMapProps) => {
   const [selectedMarker, setSelectedMarker] = useState<Appointment | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -94,7 +95,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
     );
   }
 
-  const validAppointments = appointments.filter(a => a.latitude && a.longitude);
+  // Filter out completed appointments
+  const validAppointments = appointments.filter(a => a.latitude && a.longitude && a.status !== 'Completed');
 
   // Get route lines for each doctor
   const getDoctorRoutes = () => {
@@ -241,37 +243,55 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
               </span>
             </p>
             
-            <div className="mt-3">
-              <label className="text-sm font-medium">Assign Doctor:</label>
-              <Select
-                value={selectedMarker.doctorName || 'unassigned'}
-                onValueChange={(value) => {
-                  if (onAssignDoctor) {
-                    // If "unassigned" is selected, pass empty string to unassign
-                    const doctorName = value === 'unassigned' ? '' : value;
-                    onAssignDoctor(selectedMarker.id, doctorName);
-                    setSelectedMarker(null);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="Select a doctor" />
-                </SelectTrigger>
-                <SelectContent className="bg-white z-50">
-                  <SelectItem value="unassigned">
-                    <span className="text-muted-foreground">
-                      ✕ Unassign
-                    </span>
-                  </SelectItem>
-                  {doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.name}>
-                      <span style={{ color: doctor.color }}>
-                        ● {doctor.name}
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="text-sm font-medium">Assign Doctor:</label>
+                <Select
+                  value={selectedMarker.doctorName || 'unassigned'}
+                  onValueChange={(value) => {
+                    if (onAssignDoctor) {
+                      // If "unassigned" is selected, pass empty string to unassign
+                      const doctorName = value === 'unassigned' ? '' : value;
+                      onAssignDoctor(selectedMarker.id, doctorName);
+                      setSelectedMarker(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="Select a doctor" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white z-50">
+                    <SelectItem value="unassigned">
+                      <span className="text-muted-foreground">
+                        ✕ Unassign
                       </span>
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    {doctors.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.name}>
+                        <span style={{ color: doctor.color }}>
+                          ● {doctor.name}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {selectedMarker.status !== 'Completed' && (
+                <Button 
+                  className="w-full"
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    if (onUpdateAppointment) {
+                      onUpdateAppointment(selectedMarker.id, { status: 'Completed' });
+                      setSelectedMarker(null);
+                    }
+                  }}
+                >
+                  Mark as Completed
+                </Button>
+              )}
             </div>
           </div>
         </InfoWindow>
