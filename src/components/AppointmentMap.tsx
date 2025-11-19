@@ -84,8 +84,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
       return getDoctorColor(appointment.doctorName, doctors);
     }
     
-    // Unassigned appointments are grey
-    return '#9ca3af';
+    // Unassigned appointments are red for visibility
+    return '#ef4444';
   };
 
   if (loadError) {
@@ -169,19 +169,16 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
             onDoctorSelect?.(doctor);
           }}
           icon={{
-            path: google.maps.SymbolPath.CIRCLE,
+            path: 'M12 3L2 12h3v8h14v-8h3L12 3z', // House shape
             fillColor: doctor.color,
             fillOpacity: 1,
             strokeColor: '#ffffff',
             strokeWeight: 3,
-            scale: 14,
-          }}
-          label={{
-            text: '🏥',
-            color: '#ffffff',
-            fontSize: '16px',
+            scale: 1.8,
+            anchor: new google.maps.Point(12, 20),
           }}
           title={`${doctor.name} - Starting Location`}
+          zIndex={1000}
         />
       ))}
 
@@ -211,20 +208,26 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           }}
           icon={{
             path: appointment.doctorName 
-              ? 'M -8,-8 L 8,-8 L 8,8 L -8,8 Z' // Square for assigned
+              ? 'M -12,-12 L 12,-12 L 12,12 L -12,12 Z' // Larger square for assigned
               : google.maps.SymbolPath.CIRCLE, // Circle for unassigned
             fillColor: getMarkerColor(appointment),
-            fillOpacity: 1,
+            fillOpacity: 0.95,
             strokeColor: '#ffffff',
-            strokeWeight: 2,
-            scale: appointment.doctorName ? 1 : 10,
+            strokeWeight: 3,
+            scale: appointment.doctorName ? 1.2 : 14,
           }}
           label={appointment.doctorName && appointment.orderNumber ? {
             text: appointment.orderNumber.toString(),
             color: '#ffffff',
-            fontSize: '12px',
+            fontSize: '14px',
             fontWeight: 'bold',
-          } : undefined}
+          } : {
+            text: '!',
+            color: '#ffffff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+          }}
+          zIndex={appointment.doctorName ? 500 : 100}
         />
       ))}
 
