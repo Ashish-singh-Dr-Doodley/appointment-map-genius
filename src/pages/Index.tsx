@@ -6,7 +6,8 @@ import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { MapControls } from '@/components/MapControls';
 import { CoordinateStatus } from '@/components/CoordinateStatus';
 import { DoctorScheduleList } from '@/components/DoctorScheduleList';
-import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users } from 'lucide-react';
+import { SmartAssignmentDialog } from '@/components/SmartAssignmentDialog';
+import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { fetchGoogleSheetData } from '@/utils/googleSheetsParser';
@@ -33,6 +34,8 @@ const Index = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [doctorFilter, setDoctorFilter] = useState('all');
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const [showSmartAssign, setShowSmartAssign] = useState(false);
+  const [smartAssignAppointment, setSmartAssignAppointment] = useState<Appointment | null>(null);
   const { toast } = useToast();
   
   // Use real-time hooks for doctors and appointments
@@ -375,21 +378,43 @@ const Index = () => {
               {/* Unassigned Appointments Tab */}
               <TabsContent value="unassigned">
                 <div className="bg-card rounded-lg border p-6">
-                  <h2 className="text-lg font-semibold mb-4">Unassigned Appointments</h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold">Unassigned Appointments</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Click "Smart Assign" on any appointment for AI-powered doctor suggestions
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     {appointments.filter(a => !a.doctorName).map(apt => (
                       <div key={apt.id} className="p-4 bg-warning/10 rounded-lg">
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-start">
                           <div>
                             <p className="font-medium">{apt.customerName}</p>
                             <p className="text-sm text-muted-foreground">{apt.petType} - {apt.subCategory}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{apt.location}</p>
                           </div>
-                          <div className="text-right">
+                          <div className="text-right flex flex-col items-end gap-2">
                             <p className="text-xs text-muted-foreground">{apt.visitDate} {apt.visitTime}</p>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSmartAssignAppointment(apt);
+                                setShowSmartAssign(true);
+                              }}
+                              className="gap-1"
+                            >
+                              <Zap className="w-3 h-3" />
+                              Smart Assign
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))}
+                    {appointments.filter(a => !a.doctorName).length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">
+                        No unassigned appointments
+                      </p>
+                    )}
                   </div>
                 </div>
               </TabsContent>
@@ -461,6 +486,16 @@ const Index = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Smart Assignment Dialog */}
+      <SmartAssignmentDialog
+        open={showSmartAssign}
+        onOpenChange={setShowSmartAssign}
+        appointment={smartAssignAppointment}
+        doctors={doctors}
+        allAppointments={appointments}
+        onAssign={handleAssignDoctor}
+      />
     </div>
   );
 };
