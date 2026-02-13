@@ -235,63 +235,62 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
           position={{ lat: selectedMarker.latitude!, lng: selectedMarker.longitude! }}
           onCloseClick={() => setSelectedMarker(null)}
         >
-          <div className="p-3 max-w-sm">
-            <h3 className="font-semibold text-base mb-2">{selectedMarker.customerName}</h3>
-            <p className="text-sm text-gray-600 mb-1">
-              {selectedMarker.petType} - {selectedMarker.subCategory}
-            </p>
-            <p className="text-sm mb-1">
-              {selectedMarker.visitDate} at {selectedMarker.visitTime}
-            </p>
-            <p className="text-sm mb-2">
-              <span className="font-medium">Status:</span>{' '}
-              <span 
-                className="font-semibold"
-                style={{ color: selectedMarker.doctorName 
-                  ? getDoctorColor(selectedMarker.doctorName, doctors)
-                  : getMarkerColor(selectedMarker) 
+          <div style={{ minWidth: '260px', maxWidth: '320px', padding: '8px 4px' }}>
+            {/* Customer Name with orange underline */}
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#f59e0b', margin: '0 0 4px 0', paddingBottom: '6px', borderBottom: '2px solid #f59e0b' }}>
+              {selectedMarker.customerName}
+            </h3>
+
+            {/* Status Badge */}
+            <div style={{ margin: '10px 0', padding: '6px 12px', backgroundColor: selectedMarker.doctorName ? '#dcfce7' : '#fef9c3', borderLeft: `4px solid ${selectedMarker.doctorName ? '#22c55e' : '#f59e0b'}`, borderRadius: '4px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: selectedMarker.doctorName ? '#16a34a' : '#b45309' }}>
+                STATUS: {selectedMarker.doctorName ? 'ASSIGNED' : 'UNASSIGNED'}
+              </span>
+            </div>
+
+            {/* Details Table */}
+            <table style={{ width: '100%', fontSize: '13px', marginTop: '8px' }}>
+              <tbody>
+                <tr><td style={{ fontWeight: 700, padding: '3px 8px 3px 0', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Pet:</td><td style={{ padding: '3px 0' }}>{selectedMarker.petType}</td></tr>
+                <tr><td style={{ fontWeight: 700, padding: '3px 8px 3px 0', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Service:</td><td style={{ padding: '3px 0' }}>{selectedMarker.subCategory}</td></tr>
+                <tr><td style={{ fontWeight: 700, padding: '3px 8px 3px 0', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Issue:</td><td style={{ padding: '3px 0' }}>{selectedMarker.issue || '—'}</td></tr>
+                <tr><td style={{ fontWeight: 700, padding: '3px 8px 3px 0', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Time:</td><td style={{ padding: '3px 0' }}>{selectedMarker.visitTime}</td></tr>
+                <tr><td style={{ fontWeight: 700, padding: '3px 8px 3px 0', verticalAlign: 'top', whiteSpace: 'nowrap' }}>Location:</td><td style={{ padding: '3px 0', wordBreak: 'break-all', fontSize: '11px' }}>{selectedMarker.location}</td></tr>
+              </tbody>
+            </table>
+
+            {/* Assign Doctor Dropdown */}
+            <div style={{ marginTop: '12px', borderTop: '1px solid #e5e7eb', paddingTop: '12px' }}>
+              <Select
+                value={selectedMarker.doctorName || 'unassigned'}
+                onValueChange={(value) => {
+                  if (onAssignDoctor) {
+                    const doctorName = value === 'unassigned' ? '' : value;
+                    onAssignDoctor(selectedMarker.id, doctorName);
+                    setSelectedMarker(null);
+                  }
                 }}
               >
-                {selectedMarker.status}
-              </span>
-            </p>
-            
-            <div className="mt-3 space-y-2">
-              <div>
-                <label className="text-sm font-medium">Assign Doctor:</label>
-                <Select
-                  value={selectedMarker.doctorName || 'unassigned'}
-                  onValueChange={(value) => {
-                    if (onAssignDoctor) {
-                      // If "unassigned" is selected, pass empty string to unassign
-                      const doctorName = value === 'unassigned' ? '' : value;
-                      onAssignDoctor(selectedMarker.id, doctorName);
-                      setSelectedMarker(null);
-                    }
-                  }}
-                >
-                  <SelectTrigger className="w-full mt-1">
-                    <SelectValue placeholder="Select a doctor" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white z-50">
-                    <SelectItem value="unassigned">
-                      <span className="text-muted-foreground">
-                        ✕ Unassign
-                      </span>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Assign to doctor..." />
+                </SelectTrigger>
+                <SelectContent className="bg-white z-50">
+                  <SelectItem value="unassigned">
+                    <span className="text-muted-foreground">✕ Unassign</span>
+                  </SelectItem>
+                  {doctors.map((doctor) => (
+                    <SelectItem key={doctor.id} value={doctor.name}>
+                      <span style={{ color: doctor.color }}>● {doctor.name}</span>
                     </SelectItem>
-                    {doctors.map((doctor) => (
-                      <SelectItem key={doctor.id} value={doctor.name}>
-                        <span style={{ color: doctor.color }}>
-                          ● {doctor.name}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {selectedMarker.status !== 'Completed' && (
-                <Button 
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Mark Completed Button */}
+            {selectedMarker.status !== 'Completed' && (
+              <div style={{ marginTop: '8px' }}>
+                <Button
                   className="w-full"
                   variant="default"
                   size="sm"
@@ -302,8 +301,8 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
                 >
                   Mark as Completed
                 </Button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </InfoWindow>
       )}
