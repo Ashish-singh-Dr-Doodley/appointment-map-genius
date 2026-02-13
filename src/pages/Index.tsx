@@ -10,7 +10,7 @@ import { SmartAssignmentDialog } from '@/components/SmartAssignmentDialog';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { fetchGoogleSheetData } from '@/utils/googleSheetsParser';
+import { fetchRemoteAppointments } from '@/utils/remoteAppParser';
 import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
@@ -161,7 +161,7 @@ const Index = () => {
   const handleRefreshData = async () => {
     setIsLoading(true);
     try {
-      const freshData = await fetchGoogleSheetData();
+      const freshData = await fetchRemoteAppointments();
       
       // Find only NEW appointments by comparing Sr No
       const existingSrNos = new Set(appointments.map(a => a.srNo));
@@ -170,20 +170,20 @@ const Index = () => {
       if (newAppointments.length > 0) {
         await addAppointments(newAppointments);
         toast({
-          title: "Data Refreshed",
-          description: `Added ${newAppointments.length} new appointment${newAppointments.length > 1 ? 's' : ''} from Google Sheets. ${freshData.length - newAppointments.length} existing appointment${freshData.length - newAppointments.length !== 1 ? 's' : ''} skipped.`,
+          title: "Data Synced",
+          description: `Added ${newAppointments.length} new appointment${newAppointments.length > 1 ? 's' : ''} from Booking App. ${freshData.length - newAppointments.length} existing skipped.`,
         });
       } else {
         toast({
           title: "No New Data",
-          description: "All appointments from Google Sheets are already in the system.",
+          description: "All appointments from the Booking App are already in the system.",
         });
       }
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('Error syncing data:', error);
       toast({
         title: "Error",
-        description: "Failed to refresh data from Google Sheets",
+        description: "Failed to sync data from Booking App",
         variant: "destructive",
       });
     } finally {
@@ -206,7 +206,7 @@ const Index = () => {
       
       toast({
         title: "Appointments Cleared",
-        description: "All appointments have been cleared. Doctors are preserved. Click 'Refresh Data' to load appointments from Google Sheets.",
+        description: "All appointments have been cleared. Doctors are preserved. Click 'Sync from Booking App' to reload.",
       });
     } catch (error) {
       console.error('Error clearing appointments:', error);
@@ -267,7 +267,7 @@ const Index = () => {
                 disabled={isLoading}
               >
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Refresh from Google Sheets
+                Sync from Booking App
               </Button>
               <Button 
                 variant="destructive" 
@@ -418,12 +418,12 @@ const Index = () => {
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <RefreshCw className="w-5 h-5 text-primary" />
-                        Data Source: Google Sheets
+                        Data Source: Booking App
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        This application syncs with your Google Sheet. Update your sheet and click <strong>"Refresh from Google Sheets"</strong> in the header to load new appointments.
+                        This application syncs with your Booking App (DrDoodley). Click <strong>"Sync from Booking App"</strong> in the header to load new appointments.
                       </p>
                       <div className="flex items-start gap-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
                         <div className="mt-0.5">
@@ -463,7 +463,7 @@ const Index = () => {
                 All appointment data will be permanently deleted.
               </span>
               <span className="block mt-1 text-sm">
-                Doctors will be preserved. You can reload appointments by clicking "Refresh from Google Sheets".
+                Doctors will be preserved. You can reload appointments by clicking "Sync from Booking App".
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>

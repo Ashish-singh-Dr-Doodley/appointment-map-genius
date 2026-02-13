@@ -1,1 +1,4 @@
 project_id = "wooelgewmbcecuhioxkl"
+
+[functions.fetch-remote-appointments]
+verify_jwt = false
