@@ -4,7 +4,7 @@ import { Doctor } from '@/types/doctor';
 import { AppointmentMap } from '@/components/AppointmentMap';
 import { DoctorOnboarding } from '@/components/DoctorOnboarding';
 import { MapControls } from '@/components/MapControls';
-import { CoordinateStatus } from '@/components/CoordinateStatus';
+// CoordinateStatus removed from map overlay for cleaner UI
 import { DoctorScheduleList } from '@/components/DoctorScheduleList';
 import { SmartAssignmentDialog } from '@/components/SmartAssignmentDialog';
 import { Stethoscope, RefreshCw, Download, RotateCcw, Map as MapIcon, Calendar, MapPin, Users, Zap } from 'lucide-react';
@@ -312,48 +312,40 @@ const Index = () => {
 
               {/* Maps View Tab */}
               <TabsContent value="maps" className="space-y-4">
-                <div className="bg-card rounded-lg border p-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapIcon className="w-5 h-5 text-primary" />
-                    <div>
-                      <h2 className="text-lg font-semibold">Interactive Route Map</h2>
-                      <p className="text-sm text-muted-foreground">View and manage doctor routes with real-time assignment capabilities</p>
-                    </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <MapIcon className="w-5 h-5 text-primary" />
+                  <div>
+                    <h2 className="text-lg font-semibold">Interactive Route Map</h2>
+                    <p className="text-sm text-muted-foreground">View and manage doctor routes with real-time assignment capabilities</p>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-12 gap-4">
-                    {/* Map Controls Sidebar */}
-                    <div className="col-span-3 h-[600px] flex flex-col gap-4">
-                      <CoordinateStatus appointments={appointments} />
-                      
-                      <div className="flex-1 min-h-0">
-                        <MapControls
-                          totalAppointments={filteredAppointments.length}
-                          assignedCount={assignedCount}
-                          unassignedCount={unassignedCount}
-                          doctorsCount={doctors.length}
-                          doctors={doctors}
-                          appointments={appointments}
-                          statusFilter={statusFilter}
-                          onStatusFilterChange={setStatusFilter}
-                          doctorFilter={doctorFilter}
-                          onDoctorFilterChange={setDoctorFilter}
-                          onCalculateETAs={handleCalculateETAs}
-                        />
-                      </div>
-                    </div>
+                <div className="relative rounded-lg overflow-hidden border h-[calc(100vh-280px)] min-h-[500px]">
+                  {/* Full-width Map */}
+                  <AppointmentMap
+                    key={mapKey}
+                    appointments={filteredAppointments}
+                    doctors={doctors}
+                    onAppointmentSelect={setSelectedAppointment}
+                    onAssignDoctor={handleAssignDoctor}
+                    onUpdateAppointment={updateAppointment}
+                  />
 
-                    {/* Map Area */}
-                    <div className="col-span-9 h-[600px] rounded-lg overflow-hidden border">
-                      <AppointmentMap
-                        key={mapKey}
-                        appointments={filteredAppointments}
-                        doctors={doctors}
-                        onAppointmentSelect={setSelectedAppointment}
-                        onAssignDoctor={handleAssignDoctor}
-                        onUpdateAppointment={updateAppointment}
-                      />
-                    </div>
+                  {/* Floating Map Controls Overlay */}
+                  <div className="absolute top-3 left-3 z-10 w-[340px] max-h-[calc(100%-24px)]">
+                    <MapControls
+                      totalAppointments={filteredAppointments.length}
+                      assignedCount={assignedCount}
+                      unassignedCount={unassignedCount}
+                      doctorsCount={doctors.length}
+                      doctors={doctors}
+                      appointments={appointments}
+                      statusFilter={statusFilter}
+                      onStatusFilterChange={setStatusFilter}
+                      doctorFilter={doctorFilter}
+                      onDoctorFilterChange={setDoctorFilter}
+                      onCalculateETAs={handleCalculateETAs}
+                    />
                   </div>
                 </div>
               </TabsContent>

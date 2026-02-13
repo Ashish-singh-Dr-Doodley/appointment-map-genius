@@ -1,6 +1,6 @@
-import { Clock, Filter } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Filter, Satellite, EyeOff, Eye } from 'lucide-react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 import { getDoctorColor, getUniqueDoctorNames } from '@/utils/doctorColors';
 import { Appointment } from '@/types/appointment';
 import {
@@ -39,125 +39,142 @@ export const MapControls = ({
   onCalculateETAs,
   appointments,
 }: MapControlsProps) => {
+  const [collapsed, setCollapsed] = useState(false);
   const uniqueDoctorNames = getUniqueDoctorNames(appointments);
 
   return (
-    <Card className="h-full p-4 space-y-4 overflow-y-auto">
-      {/* Map Controls Header */}
-      <div className="flex items-center justify-between">
+    <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-border overflow-y-auto max-h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4" />
-          <h3 className="font-semibold">Map Controls</h3>
+          <Filter className="w-4 h-4 text-muted-foreground" />
+          <h3 className="font-semibold text-sm">Map Controls</h3>
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm">Sat</Button>
-          <Button variant="ghost" size="sm">Hide</Button>
-        </div>
-      </div>
-
-      {/* Calculate ETAs Button */}
-      <Button 
-        variant="outline" 
-        className="w-full"
-        onClick={onCalculateETAs}
-      >
-        <Clock className="w-4 h-4 mr-2" />
-        Calculate ETAs
-      </Button>
-
-      {/* Statistics Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="text-center p-3 bg-muted/30 rounded-lg">
-          <div className="text-xs text-muted-foreground mb-1">Total</div>
-          <div className="text-2xl font-bold text-primary">{totalAppointments}</div>
-        </div>
-        <div className="text-center p-3 bg-success/10 rounded-lg">
-          <div className="text-xs text-muted-foreground mb-1">Assigned</div>
-          <div className="text-2xl font-bold text-success">{assignedCount}</div>
-        </div>
-        <div className="text-center p-3 bg-warning/10 rounded-lg">
-          <div className="text-xs text-muted-foreground mb-1">Unassigned</div>
-          <div className="text-2xl font-bold text-warning">{unassignedCount}</div>
-        </div>
-        <div className="text-center p-3 bg-accent/10 rounded-lg">
-          <div className="text-xs text-muted-foreground mb-1">Doctors</div>
-          <div className="text-2xl font-bold text-accent">{doctorsCount}</div>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+            <Satellite className="w-3 h-3 mr-1" />
+            Sat
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <Eye className="w-3 h-3 mr-1" /> : <EyeOff className="w-3 h-3 mr-1" />}
+            {collapsed ? 'Show' : 'Hide'}
+          </Button>
         </div>
       </div>
 
-      {/* Status Filter */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Status Filter</label>
-        <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="Pending">Pending</SelectItem>
-            <SelectItem value="Confirmed">Confirmed</SelectItem>
-            <SelectItem value="Completed">Completed</SelectItem>
-            <SelectItem value="Cancelled">Cancelled</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {!collapsed && (
+        <div className="p-3 space-y-3">
+          {/* Calculate ETAs */}
+          <Button
+            variant="outline"
+            className="w-full h-8 text-xs"
+            onClick={onCalculateETAs}
+          >
+            <Clock className="w-3 h-3 mr-1.5" />
+            Calculate ETAs
+          </Button>
 
-      {/* Doctor Filter */}
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Doctor Filter</label>
-        <Select value={doctorFilter} onValueChange={onDoctorFilterChange}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Doctors</SelectItem>
-            {doctors.map((doctor) => (
-              <SelectItem key={doctor.id} value={doctor.id}>
-                {doctor.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+          {/* Stats Row */}
+          <div className="grid grid-cols-4 gap-1 text-center">
+            <div className="py-2 px-1 bg-muted/30 rounded">
+              <div className="text-[10px] text-muted-foreground">Total</div>
+              <div className="text-lg font-bold text-primary">{totalAppointments}</div>
+            </div>
+            <div className="py-2 px-1 bg-muted/30 rounded">
+              <div className="text-[10px] text-muted-foreground">Assigned</div>
+              <div className="text-lg font-bold text-success">{assignedCount}</div>
+            </div>
+            <div className="py-2 px-1 bg-muted/30 rounded">
+              <div className="text-[10px] text-muted-foreground">Unassigned</div>
+              <div className="text-lg font-bold text-destructive">{unassignedCount}</div>
+            </div>
+            <div className="py-2 px-1 bg-muted/30 rounded">
+              <div className="text-[10px] text-muted-foreground">Doctors</div>
+              <div className="text-lg font-bold text-primary">{doctorsCount}</div>
+            </div>
+          </div>
 
-      {/* Active Doctors List */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-semibold">Active Doctors</h4>
-        <div className="space-y-2">
-          {uniqueDoctorNames.map((doctorName, index) => {
-            const doctorColor = getDoctorColor(doctorName, uniqueDoctorNames);
-            const appointmentCount = appointments.filter(a => a.doctorName === doctorName).length;
-            
-            return (
-              <div 
-                key={doctorName}
-                className="flex items-center justify-between p-2 bg-muted/20 rounded-lg hover:bg-muted/40 transition-colors"
-              >
-                <div className="flex items-center gap-3 flex-1">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: doctorColor }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{doctorName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {appointmentCount} appointment{appointmentCount !== 1 ? 's' : ''}
-                    </p>
+          {/* Status Filter */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Status Filter</label>
+            <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Confirmed">Confirmed</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Doctor Filter */}
+          <div className="space-y-1">
+            <label className="text-xs font-medium">Doctor Filter</label>
+            <Select value={doctorFilter} onValueChange={onDoctorFilterChange}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Doctors</SelectItem>
+                {doctors.map((doctor) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Active Doctors */}
+          <div className="space-y-1.5 border-t border-border pt-3">
+            <h4 className="text-xs font-semibold">Active Doctors</h4>
+            <div className="space-y-1.5">
+              {uniqueDoctorNames.map((doctorName) => {
+                const doctor = doctors.find(d => d.name === doctorName);
+                const doctorColor = doctor?.color || getDoctorColor(doctorName, uniqueDoctorNames);
+                const appointmentCount = appointments.filter(a => a.doctorName === doctorName).length;
+
+                return (
+                  <div
+                    key={doctorName}
+                    className="flex items-center justify-between p-2 bg-muted/20 rounded hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: doctorColor }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{doctorName}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {appointmentCount} apt
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-destructive font-medium shrink-0 ml-2">
+                      ETA: --
+                    </span>
                   </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-primary font-medium">ETA: --</p>
-                </div>
-              </div>
-            );
-          })}
-          {uniqueDoctorNames.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No active doctors
-            </p>
-          )}
+                );
+              })}
+              {uniqueDoctorNames.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-3">
+                  No active doctors
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </Card>
+      )}
+    </div>
   );
 };
