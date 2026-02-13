@@ -332,7 +332,7 @@ const Index = () => {
                   />
 
                   {/* Floating Map Controls Overlay */}
-                  <div className="absolute top-3 left-3 z-10 w-[340px] max-h-[calc(100%-24px)]">
+                  <div className="absolute top-3 left-3 z-10 w-[280px] max-h-[calc(100%-24px)]">
                     <MapControls
                       totalAppointments={filteredAppointments.length}
                       assignedCount={assignedCount}

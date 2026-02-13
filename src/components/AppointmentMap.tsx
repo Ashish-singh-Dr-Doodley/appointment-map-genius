@@ -207,24 +207,22 @@ export const AppointmentMap = ({ appointments, doctors, onAppointmentSelect, onD
             onAppointmentSelect(appointment);
           }}
           icon={{
-            path: appointment.doctorName 
-              ? 'M -12,-12 L 12,-12 L 12,12 L -12,12 Z' // Larger square for assigned
-              : google.maps.SymbolPath.CIRCLE, // Circle for unassigned
-            fillColor: getMarkerColor(appointment),
-            fillOpacity: 0.95,
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: appointment.doctorName ? getMarkerColor(appointment) : '#f59e0b',
+            fillOpacity: 1,
             strokeColor: '#ffffff',
-            strokeWeight: 3,
-            scale: appointment.doctorName ? 1.2 : 14,
+            strokeWeight: 2.5,
+            scale: 14,
           }}
           label={appointment.doctorName && appointment.orderNumber ? {
             text: appointment.orderNumber.toString(),
             color: '#ffffff',
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 'bold',
           } : {
-            text: '!',
+            text: '?',
             color: '#ffffff',
-            fontSize: '16px',
+            fontSize: '15px',
             fontWeight: 'bold',
           }}
           zIndex={appointment.doctorName ? 500 : 100}
